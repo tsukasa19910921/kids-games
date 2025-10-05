@@ -46,14 +46,9 @@ export function GameClient() {
    * Start game
    * ゲーム開始
    */
-  const handleStartGame = async () => {
+  const handleStartGame = () => {
     dispatch({ type: 'START_GAME' })
-
-    if (voiceEnabled) {
-      await speak('しりとり').catch((err) => {
-        console.warn('Failed to speak:', err)
-      })
-    }
+    // 発話はuseEffectで自動的に行われる
   }
 
   /**
