@@ -53,15 +53,32 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     const recognition = new SpeechRecognition()
     recognition.lang = 'ja-JP'
     recognition.interimResults = false
-    recognition.maxAlternatives = 1
+    recognition.maxAlternatives = 5  // 複数の候補を取得
     recognition.continuous = false
 
     // Event: Recognition result
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const result = event.results[0][0].transcript
-      const normalized = normalizeKana(result)
+      const results = event.results[0]
 
-      console.log('Speech recognized:', result, '→', normalized)
+      // 複数の候補からひらがな・カタカナのみの結果を優先的に選択
+      let bestResult = results[0].transcript
+
+      for (let i = 0; i < results.length; i++) {
+        const candidate = results[i].transcript
+        const normalized = normalizeKana(candidate)
+
+        // 漢字が含まれていない候補を見つけたら優先
+        if (!/[\u4E00-\u9FFF]/.test(normalized)) {
+          bestResult = candidate
+          console.log(`Selected candidate ${i}: "${candidate}" (no kanji)`)
+          break
+        }
+      }
+
+      const normalized = normalizeKana(bestResult)
+      console.log('Speech recognized:', bestResult, '→', normalized)
+      console.log('All candidates:', Array.from(results).map(r => r.transcript))
+
       setTranscript(normalized)
       setIsListening(false)
     }
