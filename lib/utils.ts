@@ -123,3 +123,24 @@ export function isValidChain(previousWord: string, nextWord: string): boolean {
   // The last kana of the previous word should match the first kana of the next word
   return lastKana === firstKana
 }
+
+/**
+ * Check if text contains kanji characters
+ * テキストに漢字が含まれているかチェック
+ */
+export function containsKanji(text: string): boolean {
+  // Kanji Unicode range: U+4E00 to U+9FFF
+  const kanjiRegex = /[\u4E00-\u9FFF]/
+  return kanjiRegex.test(text)
+}
+
+/**
+ * Check if text is only hiragana and katakana
+ * テキストがひらがなとカタカナのみかチェック
+ */
+export function isOnlyKana(text: string): boolean {
+  const cleaned = removeSpecialCharacters(text)
+  // Hiragana: U+3040-U+309F, Katakana: U+30A0-U+30FF
+  const kanaRegex = /^[\u3040-\u309F\u30A0-\u30FFー]+$/
+  return kanaRegex.test(cleaned)
+}

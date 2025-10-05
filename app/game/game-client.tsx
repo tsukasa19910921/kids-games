@@ -6,6 +6,7 @@ import { useGameState } from '@/hooks/useGameState'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { validateUserInput, getLoseReasonMessage, determineWinner } from '@/lib/game-logic'
 import { generateCPUResponse, cpuThink } from '@/lib/cpu-logic'
+import { containsKanji } from '@/lib/utils'
 
 export function GameClient() {
   const { state, dispatch } = useGameState()
@@ -289,6 +290,16 @@ export function GameClient() {
         <div className="bg-yellow-50 border-2 border-yellow-300 rounded-2xl p-6 space-y-4">
           <p className="text-center text-lg">この言葉でいいですか？</p>
           <p className="text-center text-3xl font-bold text-yellow-800">{userInput}</p>
+
+          {/* Warning if contains kanji */}
+          {containsKanji(userInput) && (
+            <div className="bg-orange-100 border-2 border-orange-400 rounded-lg p-3">
+              <p className="text-orange-800 text-sm text-center">
+                ⚠️ 漢字が含まれています。ひらがなで言い直してください。
+              </p>
+            </div>
+          )}
+
           <div className="flex gap-4 justify-center">
             <button
               onClick={handleRetry}

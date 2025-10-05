@@ -3,8 +3,7 @@
  * しりとりゲームのバリデーションロジック
  */
 
-import { normalizeKana, getLastKana, isValidChain } from './utils'
-import { isValidWord } from './dictionary'
+import { normalizeKana, getLastKana, isValidChain, containsKanji } from './utils'
 import type { ValidationResult, LoseReason } from './types'
 
 /**
@@ -53,6 +52,15 @@ export function validateUserInput(
     }
   }
 
+  // 漢字チェック
+  if (containsKanji(userInput)) {
+    return {
+      isValid: false,
+      reason: 'INVALID',
+      message: 'ひらがなで入力してください'
+    }
+  }
+
   // 正規化
   const normalized = normalizeKana(userInput)
 
@@ -62,15 +70,6 @@ export function validateUserInput(
       isValid: false,
       reason: 'INVALID',
       message: '2文字以上の単語を入力してください'
-    }
-  }
-
-  // 辞書チェック
-  if (!isValidWord(userInput)) {
-    return {
-      isValid: false,
-      reason: 'INVALID',
-      message: 'その単語は辞書に登録されていません'
     }
   }
 
