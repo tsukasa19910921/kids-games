@@ -261,7 +261,13 @@ export function GameClient() {
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && userInput.trim()) {
+                if (e.key !== 'Enter') return
+
+                // IME合成中は処理しない
+                // if (e.nativeEvent.isComposing || e.keyCode === 229) return
+
+                if (userInput.trim()) {
+                  e.preventDefault()
                   setShowConfirm(true)
                   setTypingCompleted(false)
                 }
