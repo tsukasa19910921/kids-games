@@ -175,50 +175,8 @@ export function GameClient() {
         </div>
       )}
 
-      {/* Messages log */}
-      {state.messages.length > 0 && (
-        <div className="bg-white rounded-2xl p-4 max-h-[300px] overflow-y-auto border-2 border-gray-200">
-          <p className="text-sm text-gray-500 mb-3 font-semibold">メッセージ</p>
-          <div className="space-y-2">
-            {state.messages.map((msg, index) => (
-              <div
-                key={index}
-                className={`p-3 rounded-lg ${
-                  msg.sender === 'USER'
-                    ? 'bg-green-100 text-green-800 ml-8'
-                    : msg.sender === 'CPU'
-                    ? 'bg-blue-100 text-blue-800 mr-8'
-                    : 'bg-gray-100 text-gray-700 text-center'
-                }`}
-              >
-                <span className="text-xs font-semibold">
-                  {msg.sender === 'USER' ? 'あなた' : msg.sender === 'CPU' ? 'コンピュータ' : 'システム'}:
-                </span>{' '}
-                <span className="font-medium">{msg.text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Used words display */}
-      {state.usedWords.length > 0 && (
-        <div className="bg-gray-50 rounded-2xl p-4 border-2 border-gray-200">
-          <p className="text-sm text-gray-600 mb-3 font-semibold">
-            つかったことば ({state.usedWords.length}こ)
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {state.usedWords.map((word, index) => (
-              <span
-                key={index}
-                className="px-3 py-1 bg-white rounded-full text-sm border border-gray-300 shadow-sm"
-              >
-                {word}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Messages log - Hidden as it duplicates with used words */}
+      {/* Removed to simplify UI */}
 
       {/* Voice input controls */}
       {state.status === 'PLAYING' && state.turn === 'USER' && !showConfirm && (
@@ -376,6 +334,25 @@ export function GameClient() {
           </button>
         )}
       </div>
+
+      {/* Used words display - Moved to bottom */}
+      {state.usedWords.length > 0 && (
+        <div className="bg-gray-50 rounded-2xl p-4 border-2 border-gray-200">
+          <p className="text-sm text-gray-600 mb-3 font-semibold">
+            つかったことば ({state.usedWords.length}こ)
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {state.usedWords.map((word, index) => (
+              <span
+                key={index}
+                className="px-3 py-1 bg-white rounded-full text-sm border border-gray-300 shadow-sm"
+              >
+                {word}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Listening indicator (floating) */}
       {isListening && (
