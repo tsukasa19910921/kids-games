@@ -1,36 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# kids-games
 
-## Getting Started
+子供向けしりとりWebアプリケーション
 
-First, run the development server:
+## 機能
+
+- 🎤 音声入力対応（Web Speech API）
+- 🔊 音声合成でCPU応答
+- ✍️ テキスト入力フォールバック
+- 🎮 CPU対戦モード
+- ✅ しりとりルールバリデーション
+- 📊 ゲーム履歴表示
+
+## 技術スタック
+
+- Next.js 15.5.4 (App Router + Turbopack)
+- TypeScript
+- Tailwind CSS
+- Web Speech API
+
+## セットアップ
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+ブラウザで http://localhost:3000 にアクセス
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 開発
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# 開発サーバー起動
+npm run dev
 
-## Learn More
+# ビルド
+npm run build
 
-To learn more about Next.js, take a look at the following resources:
+# プロダクション起動
+npm run start
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Lintチェック
+npm run lint
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## プロジェクト構成
 
-## Deploy on Vercel
+```
+shiritori-app/
+├── app/                 # Next.js App Router
+│   ├── game/           # ゲーム画面
+│   └── page.tsx        # トップページ
+├── components/         # Reactコンポーネント
+├── hooks/             # カスタムフック
+│   ├── useGameState.ts
+│   └── useSpeechRecognition.ts
+├── lib/               # ユーティリティ・ロジック
+│   ├── types.ts
+│   ├── dictionary.ts
+│   ├── game-logic.ts
+│   ├── cpu-logic.ts
+│   ├── speech.ts
+│   └── utils.ts
+└── public/            # 静的ファイル
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## デプロイ
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Vercelへのデプロイに最適化されています。
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
+
+## ブラウザ対応
+
+- Chrome/Edge (推奨)
+- Safari (iOS/macOS)
+- Firefox (音声機能制限あり)
+
+※ 音声機能を使用するにはHTTPS環境が必要です（localhost除く）
+
+## ライセンス
+
+MIT
