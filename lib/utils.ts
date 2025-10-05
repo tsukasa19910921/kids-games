@@ -144,3 +144,211 @@ export function isOnlyKana(text: string): boolean {
   const kanaRegex = /^[\u3040-\u309F\u30A0-\u30FFー]+$/
   return kanaRegex.test(cleaned)
 }
+
+/**
+ * Romaji conversion table (uppercase)
+ * ローマ字変換テーブル（大文字）
+ */
+const ROMAJI_TABLE: Record<string, string> = {
+  // あ行
+  'あ': 'A', 'い': 'I', 'う': 'U', 'え': 'E', 'お': 'O',
+  // か行
+  'か': 'KA', 'き': 'KI', 'く': 'KU', 'け': 'KE', 'こ': 'KO',
+  'が': 'GA', 'ぎ': 'GI', 'ぐ': 'GU', 'げ': 'GE', 'ご': 'GO',
+  // さ行
+  'さ': 'SA', 'し': 'SHI', 'す': 'SU', 'せ': 'SE', 'そ': 'SO',
+  'ざ': 'ZA', 'じ': 'JI', 'ず': 'ZU', 'ぜ': 'ZE', 'ぞ': 'ZO',
+  // た行
+  'た': 'TA', 'ち': 'CHI', 'つ': 'TSU', 'て': 'TE', 'と': 'TO',
+  'だ': 'DA', 'ぢ': 'DI', 'づ': 'DU', 'で': 'DE', 'ど': 'DO',
+  // な行
+  'な': 'NA', 'に': 'NI', 'ぬ': 'NU', 'ね': 'NE', 'の': 'NO',
+  // は行
+  'は': 'HA', 'ひ': 'HI', 'ふ': 'FU', 'へ': 'HE', 'ほ': 'HO',
+  'ば': 'BA', 'び': 'BI', 'ぶ': 'BU', 'べ': 'BE', 'ぼ': 'BO',
+  'ぱ': 'PA', 'ぴ': 'PI', 'ぷ': 'PU', 'ぺ': 'PE', 'ぽ': 'PO',
+  // ま行
+  'ま': 'MA', 'み': 'MI', 'む': 'MU', 'め': 'ME', 'も': 'MO',
+  // や行
+  'や': 'YA', 'ゆ': 'YU', 'よ': 'YO',
+  // ら行
+  'ら': 'RA', 'り': 'RI', 'る': 'RU', 'れ': 'RE', 'ろ': 'RO',
+  // わ行
+  'わ': 'WA', 'ゐ': 'WI', 'ゑ': 'WE', 'を': 'WO', 'ん': 'N',
+  // きゃ行
+  'きゃ': 'KYA', 'きゅ': 'KYU', 'きょ': 'KYO',
+  'ぎゃ': 'GYA', 'ぎゅ': 'GYU', 'ぎょ': 'GYO',
+  // しゃ行
+  'しゃ': 'SHA', 'しゅ': 'SHU', 'しょ': 'SHO',
+  'じゃ': 'JA', 'じゅ': 'JU', 'じょ': 'JO',
+  // ちゃ行
+  'ちゃ': 'CHA', 'ちゅ': 'CHU', 'ちょ': 'CHO',
+  'ぢゃ': 'DYA', 'ぢゅ': 'DYU', 'ぢょ': 'DYO',
+  // にゃ行
+  'にゃ': 'NYA', 'にゅ': 'NYU', 'にょ': 'NYO',
+  // ひゃ行
+  'ひゃ': 'HYA', 'ひゅ': 'HYU', 'ひょ': 'HYO',
+  'びゃ': 'BYA', 'びゅ': 'BYU', 'びょ': 'BYO',
+  'ぴゃ': 'PYA', 'ぴゅ': 'PYU', 'ぴょ': 'PYO',
+  // みゃ行
+  'みゃ': 'MYA', 'みゅ': 'MYU', 'みょ': 'MYO',
+  // りゃ行
+  'りゃ': 'RYA', 'りゅ': 'RYU', 'りょ': 'RYO',
+  // 小文字（単独の場合）
+  'ぁ': 'A', 'ぃ': 'I', 'ぅ': 'U', 'ぇ': 'E', 'ぉ': 'O',
+  'ゃ': 'YA', 'ゅ': 'YU', 'ょ': 'YO',
+  'ゎ': 'WA', 'っ': 'XTU',
+}
+
+/**
+ * Convert hiragana/katakana to uppercase romaji
+ * ひらがな/カタカナを大文字ローマ字に変換
+ *
+ * @param kana - ひらがなまたはカタカナ文字列
+ * @returns 大文字のローマ字文字列
+ */
+export function kanaToRomaji(kana: string): string {
+  if (!kana) return ''
+
+  // カタカナをひらがなに変換
+  let hiragana = kana.replace(/[\u30A1-\u30F6]/g, (char) => {
+    if (char === 'ー') return char
+    return String.fromCharCode(char.charCodeAt(0) - 0x60)
+  })
+
+  // 長音記号を除去
+  hiragana = hiragana.replace(/ー/g, '')
+
+  let result = ''
+  let i = 0
+
+  while (i < hiragana.length) {
+    // 促音（っ）の処理
+    if (hiragana[i] === 'っ' || hiragana[i] === 'ッ') {
+      // 次の文字の子音を重ねる
+      if (i + 1 < hiragana.length) {
+        const nextRomaji = ROMAJI_TABLE[hiragana[i + 1]] || hiragana[i + 1].toUpperCase()
+        // 子音を取得（最初の文字または最初の子音文字）
+        const consonant = nextRomaji.match(/^[BCDFGHJKLMNPQRSTVWXYZ]/) ? nextRomaji[0] : 'T'
+        result += consonant
+      } else {
+        result += 'XTU'
+      }
+      i++
+      continue
+    }
+
+    // 2文字の組み合わせをチェック（きゃ、しゃなど）
+    if (i + 1 < hiragana.length) {
+      const twoChar = hiragana.substring(i, i + 2)
+      if (ROMAJI_TABLE[twoChar]) {
+        result += ROMAJI_TABLE[twoChar]
+        i += 2
+        continue
+      }
+    }
+
+    // 1文字の変換
+    const oneChar = hiragana[i]
+    if (ROMAJI_TABLE[oneChar]) {
+      result += ROMAJI_TABLE[oneChar]
+    } else {
+      result += oneChar.toUpperCase()
+    }
+    i++
+  }
+
+  return result
+}
+
+/**
+ * Get romaji for typing practice
+ * タイピング練習用のローマ字を取得（複数のパターンを返す）
+ *
+ * @param kana - ひらがなまたはカタカナ文字列
+ * @returns ローマ字のパターン配列（最初が推奨パターン）
+ */
+export function getTypingRomaji(kana: string): string[] {
+  const primary = kanaToRomaji(kana)
+  const alternatives: string[] = [primary]
+
+  // 代替パターンを追加（例：SHI→SI、CHI→TI、TSU→TU）
+  const alt1 = primary.replace(/SHI/g, 'SI').replace(/CHI/g, 'TI').replace(/TSU/g, 'TU')
+  if (alt1 !== primary && !alternatives.includes(alt1)) {
+    alternatives.push(alt1)
+  }
+
+  // JI→ZI の代替
+  const alt2 = primary.replace(/JI/g, 'ZI')
+  if (alt2 !== primary && !alternatives.includes(alt2)) {
+    alternatives.push(alt2)
+  }
+
+  // FU→HU の代替
+  const alt3 = primary.replace(/FU/g, 'HU')
+  if (alt3 !== primary && !alternatives.includes(alt3)) {
+    alternatives.push(alt3)
+  }
+
+  return alternatives
+}
+
+/**
+ * Convert kana to romaji segments for visual grouping
+ * ひらがなをローマ字セグメントに変換（視覚的グループ化用）
+ *
+ * @param kana - ひらがなまたはカタカナ文字列
+ * @returns ひらがなとローマ字のペア配列
+ */
+export function kanaToRomajiSegments(kana: string): Array<{ kana: string, romaji: string }> {
+  if (!kana) return []
+
+  // カタカナをひらがなに変換
+  let hiragana = kana.replace(/[\u30A1-\u30F6]/g, (char) => {
+    if (char === 'ー') return char
+    return String.fromCharCode(char.charCodeAt(0) - 0x60)
+  })
+
+  // 長音記号を除去
+  hiragana = hiragana.replace(/ー/g, '')
+
+  const segments: Array<{ kana: string, romaji: string }> = []
+  let i = 0
+
+  while (i < hiragana.length) {
+    // 促音（っ）の処理
+    if (hiragana[i] === 'っ' || hiragana[i] === 'ッ') {
+      // 次の文字の子音を重ねる
+      if (i + 1 < hiragana.length) {
+        const nextRomaji = ROMAJI_TABLE[hiragana[i + 1]] || hiragana[i + 1].toUpperCase()
+        const consonant = nextRomaji.match(/^[BCDFGHJKLMNPQRSTVWXYZ]/) ? nextRomaji[0] : 'T'
+        segments.push({ kana: hiragana[i], romaji: consonant })
+      } else {
+        segments.push({ kana: hiragana[i], romaji: 'XTU' })
+      }
+      i++
+      continue
+    }
+
+    // 2文字の組み合わせをチェック（きゃ、しゃなど）
+    if (i + 1 < hiragana.length) {
+      const twoChar = hiragana.substring(i, i + 2)
+      if (ROMAJI_TABLE[twoChar]) {
+        segments.push({ kana: twoChar, romaji: ROMAJI_TABLE[twoChar] })
+        i += 2
+        continue
+      }
+    }
+
+    // 1文字の変換
+    const oneChar = hiragana[i]
+    if (ROMAJI_TABLE[oneChar]) {
+      segments.push({ kana: oneChar, romaji: ROMAJI_TABLE[oneChar] })
+    } else {
+      segments.push({ kana: oneChar, romaji: oneChar.toUpperCase() })
+    }
+    i++
+  }
+
+  return segments
+}

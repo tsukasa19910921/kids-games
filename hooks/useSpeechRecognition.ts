@@ -13,6 +13,7 @@ interface UseSpeechRecognitionReturn {
   transcript: string
   error: string | null
   isSupported: boolean
+  timeLeft: number
   startListening: () => void
   stopListening: () => void
   resetTranscript: () => void
@@ -27,8 +28,11 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
   const [transcript, setTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSupported, setIsSupported] = useState(false)
+  const [timeLeft, setTimeLeft] = useState(5)
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const hasResultRef = useRef(false)
 
   // Initialize SpeechRecognition
   useEffect(() => {
@@ -79,13 +83,27 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       console.log('Speech recognized:', bestResult, '→', normalized)
       console.log('All candidates:', Array.from(results).map(r => r.transcript))
 
+      // Clear timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+
+      hasResultRef.current = true
       setTranscript(normalized)
       setIsListening(false)
+      setTimeLeft(5)
     }
 
     // Event: Recognition error
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       console.error('Speech recognition error:', event.error)
+
+      // Clear timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
 
       switch (event.error) {
         case 'no-speech':
@@ -105,12 +123,26 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       }
 
       setIsListening(false)
+      setTimeLeft(5)
     }
 
     // Event: Recognition end
     recognition.onend = () => {
       console.log('Speech recognition ended')
+
+      // Clear timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+
       setIsListening(false)
+      setTimeLeft(5)
+
+      // Check if no result was received
+      if (!hasResultRef.current) {
+        setError('音声が聞き取れませんでした')
+      }
     }
 
     // Event: Recognition start
@@ -126,6 +158,9 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     return () => {
       if (recognitionRef.current) {
         recognitionRef.current.abort()
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
       }
     }
   }, [])
@@ -148,10 +183,41 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     try {
       setTranscript('')
       setError(null)
+      setTimeLeft(5)
+      hasResultRef.current = false
+
+      // Start countdown timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            // Timeout reached
+            if (timerRef.current) {
+              clearInterval(timerRef.current)
+              timerRef.current = null
+            }
+            if (recognitionRef.current) {
+              recognitionRef.current.stop()
+            }
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+
       recognitionRef.current.start()
     } catch (err) {
       console.error('Failed to start recognition:', err)
       setError('音声認識の開始に失敗しました')
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+      setTimeLeft(5)
     }
   }, [isListening])
 
@@ -170,6 +236,11 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     }
 
     try {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+      setTimeLeft(5)
       recognitionRef.current.stop()
     } catch (err) {
       console.error('Failed to stop recognition:', err)
@@ -190,6 +261,7 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     transcript,
     error,
     isSupported,
+    timeLeft,
     startListening,
     stopListening,
     resetTranscript

@@ -119,6 +119,7 @@ export function determineWinner(loseReason: LoseReason): 'USER' | 'CPU' | null {
     case 'N_END':
     case 'INVALID':
     case 'NOT_CHAIN':
+    case 'NO_SPEECH':
       return 'CPU' // ユーザーが負け、CPUの勝ち
     case 'CPU_NO_WORD':
       return 'USER' // CPUが負け、ユーザーの勝ち
@@ -143,6 +144,8 @@ export function getLoseReasonMessage(loseReason: LoseReason): string {
       return 'しりとりが続いていません！'
     case 'CPU_NO_WORD':
       return 'コンピュータが単語を思いつきませんでした！'
+    case 'NO_SPEECH':
+      return '音声が聞き取れませんでした！'
     default:
       return 'ゲーム終了'
   }

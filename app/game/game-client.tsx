@@ -7,28 +7,57 @@ import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { validateUserInput, getLoseReasonMessage, determineWinner } from '@/lib/game-logic'
 import { generateCPUResponse, cpuThink } from '@/lib/cpu-logic'
 import { containsKanji } from '@/lib/utils'
+import { playRecordingStartSound, playRecordingStopSound, enableSounds } from '@/lib/sounds'
+import { TypingPractice } from '@/components/TypingPractice'
 
 export function GameClient() {
   const { state, dispatch } = useGameState()
-  const { isListening, transcript, error, isSupported, startListening, resetTranscript } = useSpeechRecognition()
+  const { isListening, transcript, error, isSupported, timeLeft, startListening, resetTranscript } = useSpeechRecognition()
 
   const [showConfirm, setShowConfirm] = useState(false)
   const [userInput, setUserInput] = useState<string>('')
   const [voiceEnabled, setVoiceEnabled] = useState(true)
+  const [typingPracticeEnabled, setTypingPracticeEnabled] = useState(false)
+  const [typingCompleted, setTypingCompleted] = useState(false)
 
-  // Initialize speech synthesis
+  // Initialize speech synthesis and sounds
   useEffect(() => {
     initializeSpeechSynthesis()
+    enableSounds()
   }, [])
 
   // Handle speech recognition result
   useEffect(() => {
     if (transcript && state.status === 'LISTENING') {
+      playRecordingStopSound()
       setUserInput(transcript)
       setShowConfirm(true)
+      setTypingCompleted(false)  // タイピング状態をリセット
       dispatch({ type: 'SET_STATUS', payload: 'PLAYING' })
     }
   }, [transcript, state.status, dispatch])
+
+  // Handle speech recognition timeout/error
+  useEffect(() => {
+    if (error && state.status === 'LISTENING' && !isListening) {
+      // タイムアウトまたはエラーが発生し、音声認識が停止した場合
+      playRecordingStopSound()
+
+      // 音声が聞き取れなかった場合はゲームオーバー
+      if (error === '音声が聞き取れませんでした') {
+        dispatch({ type: 'GAME_OVER', payload: 'NO_SPEECH' })
+        resetTranscript()
+      } else {
+        // その他のエラーはプレイ状態に戻す
+        dispatch({ type: 'SET_STATUS', payload: 'PLAYING' })
+
+        // エラーメッセージは一定時間後に自動的にクリア
+        setTimeout(() => {
+          resetTranscript()
+        }, 3000)
+      }
+    }
+  }, [error, state.status, isListening, dispatch, resetTranscript])
 
   // Speak CPU responses
   useEffect(() => {
@@ -60,6 +89,7 @@ export function GameClient() {
     setShowConfirm(false)
     resetTranscript()
     dispatch({ type: 'SET_STATUS', payload: 'LISTENING' })
+    playRecordingStartSound()
     startListening()
   }
 
@@ -142,7 +172,16 @@ export function GameClient() {
   const handleRetry = () => {
     setUserInput('')
     setShowConfirm(false)
+    setTypingCompleted(false)
     resetTranscript()
+  }
+
+  /**
+   * Handle typing practice completion
+   * タイピング練習完了時の処理
+   */
+  const handleTypingComplete = () => {
+    setTypingCompleted(true)
   }
 
   // Get winner if game is over
@@ -155,7 +194,11 @@ export function GameClient() {
         <h2 className="text-3xl font-bold text-gray-800 mb-2">
           {state.status === 'IDLE' && 'しりとりゲーム'}
           {state.status === 'PLAYING' && 'ゲーム中'}
-          {state.status === 'LISTENING' && '聞いています...'}
+          {state.status === 'LISTENING' && (
+            <span>
+              聞いています... <span className="text-5xl font-extrabold text-red-500 mx-2">{timeLeft}</span>
+            </span>
+          )}
           {state.status === 'THINKING' && 'かんがえています...'}
           {state.status === 'RESULT' && 'ゲーム終了'}
         </h2>
@@ -178,9 +221,17 @@ export function GameClient() {
       {/* Messages log - Hidden as it duplicates with used words */}
       {/* Removed to simplify UI */}
 
-      {/* Voice input controls */}
+      {/* Voice/Text input controls */}
       {state.status === 'PLAYING' && state.turn === 'USER' && !showConfirm && (
         <div className="space-y-4">
+          {/* Error message */}
+          {error && (
+            <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4 text-center animate-pulse">
+              <p className="text-red-700 font-bold">{error}</p>
+              <p className="text-sm text-red-600 mt-2">もう一度マイクボタンを押してください</p>
+            </div>
+          )}
+
           {/* Voice input button */}
           {isSupported && (
             <div className="flex justify-center">
@@ -212,6 +263,7 @@ export function GameClient() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && userInput.trim()) {
                   setShowConfirm(true)
+                  setTypingCompleted(false)
                 }
               }}
               placeholder="ひらがなで入力してね"
@@ -220,7 +272,10 @@ export function GameClient() {
             />
             {userInput && (
               <button
-                onClick={() => setShowConfirm(true)}
+                onClick={() => {
+                  setShowConfirm(true)
+                  setTypingCompleted(false)
+                }}
                 className="w-full px-6 py-3 bg-blue-500 text-white rounded-lg
                          hover:bg-blue-600 transition-colors"
               >
@@ -228,13 +283,6 @@ export function GameClient() {
               </button>
             )}
           </div>
-
-          {/* Error message */}
-          {error && (
-            <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4 text-center">
-              <p className="text-red-700">{error}</p>
-            </div>
-          )}
         </div>
       )}
 
@@ -253,6 +301,32 @@ export function GameClient() {
             </div>
           )}
 
+          {/* Typing practice toggle */}
+          <div className="flex justify-center">
+            <button
+              onClick={() => {
+                setTypingPracticeEnabled(!typingPracticeEnabled)
+                setTypingCompleted(false)
+              }}
+              className={`px-6 py-2 rounded-full font-bold transition-colors ${
+                typingPracticeEnabled
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              }`}
+            >
+              {typingPracticeEnabled ? '⌨️ タイピング練習 ON' : '⌨️ タイピング練習 OFF'}
+            </button>
+          </div>
+
+          {/* Typing practice component */}
+          {typingPracticeEnabled && (
+            <TypingPractice
+              targetWord={userInput}
+              onComplete={handleTypingComplete}
+              onConfirm={handleConfirm}
+            />
+          )}
+
           <div className="flex gap-4 justify-center">
             <button
               onClick={handleRetry}
@@ -263,8 +337,12 @@ export function GameClient() {
             </button>
             <button
               onClick={handleConfirm}
-              className="px-8 py-3 bg-green-500 text-white rounded-full font-bold
-                       hover:bg-green-600 transition-colors"
+              disabled={typingPracticeEnabled && !typingCompleted}
+              className={`px-8 py-3 rounded-full font-bold transition-colors ${
+                typingPracticeEnabled && !typingCompleted
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-green-500 text-white hover:bg-green-600'
+              }`}
             >
               こたえる
             </button>
@@ -354,7 +432,7 @@ export function GameClient() {
         </div>
       )}
 
-      {/* Listening indicator (floating) */}
+      {/* Listening indicator (floating) - simplified */}
       {isListening && (
         <div className="fixed bottom-8 right-8 bg-red-500 text-white
                       px-6 py-4 rounded-full shadow-2xl animate-pulse z-50">
@@ -363,7 +441,7 @@ export function GameClient() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
               <span className="relative inline-flex rounded-full h-4 w-4 bg-white"></span>
             </span>
-            <span className="font-bold">聞いています...</span>
+            <span className="font-bold">録音中</span>
           </span>
         </div>
       )}
