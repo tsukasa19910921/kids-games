@@ -3,7 +3,7 @@
  * しりとりゲームのバリデーションロジック
  */
 
-import { normalizeKana, getLastKana, getFirstKana, isValidChain } from './utils'
+import { normalizeKana, getLastKana, isValidChain } from './utils'
 import { isValidWord } from './dictionary'
 import type { ValidationResult, LoseReason } from './types'
 

@@ -9,7 +9,7 @@ import { generateCPUResponse, cpuThink } from '@/lib/cpu-logic'
 
 export function GameClient() {
   const { state, dispatch } = useGameState()
-  const { isListening, transcript, error, isSupported, startListening, stopListening, resetTranscript } = useSpeechRecognition()
+  const { isListening, transcript, error, isSupported, startListening, resetTranscript } = useSpeechRecognition()
 
   const [showConfirm, setShowConfirm] = useState(false)
   const [userInput, setUserInput] = useState<string>('')
