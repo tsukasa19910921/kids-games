@@ -3,4 +3,4 @@ User-agent: *
 Allow: /
 
 # Sitemap
-Sitemap: https://kids-games.vercel.app/sitemap.xml
+Sitemap: https://kids-games-jp.vercel.app/sitemap.xml

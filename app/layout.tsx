@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://kids-games.vercel.app'),
+  metadataBase: new URL('https://kids-games-jp.vercel.app'),
   title: {
     default: 'こどもしりとり - 音声で遊ぶしりとりゲーム',
     template: '%s | こどもしりとり',
@@ -31,13 +31,13 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'ja_JP',
-    url: 'https://kids-games.vercel.app',
+    url: 'https://kids-games-jp.vercel.app',
     siteName: 'こどもしりとり',
     title: 'こどもしりとり - 音声で遊ぶしりとりゲーム',
     description: '音声認識でしりとりが楽しめる子供向けWebアプリ。マイクで話すだけでコンピュータと対戦できます。',
     images: [
       {
-        url: '/opengraph-image',
+        url: '/images/og-image.png',
         width: 1200,
         height: 630,
         alt: 'こどもしりとり',
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'こどもしりとり - 音声で遊ぶしりとりゲーム',
     description: '音声認識でしりとりが楽しめる子供向けWebアプリ。マイクで話すだけでコンピュータと対戦できます。',
-    images: ['/opengraph-image'],
+    images: ['/images/og-image.png'],
   },
   robots: {
     index: true,
@@ -62,12 +62,9 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: [
-      { url: '/icon.png', type: 'image/png' },
-      { url: '/favicon.ico', sizes: '48x48', type: 'image/x-icon' },
-    ],
-    shortcut: '/favicon.ico',
-    apple: '/icon.png',
+    icon: '/images/icon.png',
+    shortcut: '/images/icon.png',
+    apple: '/images/icon.png',
   },
   manifest: '/manifest.json',
 };
