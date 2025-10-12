@@ -58,60 +58,78 @@ function playBeep(frequency: number, duration: number, volume: number = 0.3): vo
  * Play recording start sound
  * 録音開始音を再生（上昇音）
  */
-export function playRecordingStartSound(): void {
-  const ctx = getAudioContext()
-  if (!ctx) return
+export function playRecordingStartSound(): Promise<void> {
+  return new Promise((resolve) => {
+    const ctx = getAudioContext()
+    if (!ctx) {
+      resolve()
+      return
+    }
 
-  try {
-    const oscillator = ctx.createOscillator()
-    const gainNode = ctx.createGain()
+    try {
+      const oscillator = ctx.createOscillator()
+      const gainNode = ctx.createGain()
 
-    oscillator.connect(gainNode)
-    gainNode.connect(ctx.destination)
+      oscillator.connect(gainNode)
+      gainNode.connect(ctx.destination)
 
-    // 上昇する音（600Hz → 800Hz）
-    oscillator.frequency.setValueAtTime(600, ctx.currentTime)
-    oscillator.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.1)
-    oscillator.type = 'sine'
+      // 上昇する音（600Hz → 800Hz）
+      oscillator.frequency.setValueAtTime(600, ctx.currentTime)
+      oscillator.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.1)
+      oscillator.type = 'sine'
 
-    gainNode.gain.setValueAtTime(0.3, ctx.currentTime)
-    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15)
+      gainNode.gain.setValueAtTime(0.3, ctx.currentTime)
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15)
 
-    oscillator.start(ctx.currentTime)
-    oscillator.stop(ctx.currentTime + 0.15)
-  } catch (error) {
-    console.error('Failed to play recording start sound:', error)
-  }
+      oscillator.start(ctx.currentTime)
+      oscillator.stop(ctx.currentTime + 0.15)
+
+      // 音が終わるまで待機
+      oscillator.onended = () => resolve()
+    } catch (error) {
+      console.error('Failed to play recording start sound:', error)
+      resolve()
+    }
+  })
 }
 
 /**
  * Play recording stop sound
  * 録音終了音を再生（下降音）
  */
-export function playRecordingStopSound(): void {
-  const ctx = getAudioContext()
-  if (!ctx) return
+export function playRecordingStopSound(): Promise<void> {
+  return new Promise((resolve) => {
+    const ctx = getAudioContext()
+    if (!ctx) {
+      resolve()
+      return
+    }
 
-  try {
-    const oscillator = ctx.createOscillator()
-    const gainNode = ctx.createGain()
+    try {
+      const oscillator = ctx.createOscillator()
+      const gainNode = ctx.createGain()
 
-    oscillator.connect(gainNode)
-    gainNode.connect(ctx.destination)
+      oscillator.connect(gainNode)
+      gainNode.connect(ctx.destination)
 
-    // 下降する音（800Hz → 600Hz）
-    oscillator.frequency.setValueAtTime(800, ctx.currentTime)
-    oscillator.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.1)
-    oscillator.type = 'sine'
+      // 下降する音（800Hz → 600Hz）
+      oscillator.frequency.setValueAtTime(800, ctx.currentTime)
+      oscillator.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.1)
+      oscillator.type = 'sine'
 
-    gainNode.gain.setValueAtTime(0.3, ctx.currentTime)
-    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15)
+      gainNode.gain.setValueAtTime(0.3, ctx.currentTime)
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15)
 
-    oscillator.start(ctx.currentTime)
-    oscillator.stop(ctx.currentTime + 0.15)
-  } catch (error) {
-    console.error('Failed to play recording stop sound:', error)
-  }
+      oscillator.start(ctx.currentTime)
+      oscillator.stop(ctx.currentTime + 0.15)
+
+      // 音が終わるまで待機
+      oscillator.onended = () => resolve()
+    } catch (error) {
+      console.error('Failed to play recording stop sound:', error)
+      resolve()
+    }
+  })
 }
 
 /**

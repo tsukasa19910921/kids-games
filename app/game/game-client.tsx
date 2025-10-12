@@ -29,7 +29,8 @@ export function GameClient() {
   // Handle speech recognition result
   useEffect(() => {
     if (transcript && state.status === 'LISTENING') {
-      playRecordingStopSound()
+      // 効果音の再生（非同期だが待機はしない、UIがブロックされないように）
+      playRecordingStopSound().catch(console.error)
       setUserInput(transcript)
       setShowConfirm(true)
       setTypingCompleted(false)  // タイピング状態をリセット
@@ -41,7 +42,7 @@ export function GameClient() {
   useEffect(() => {
     if (error && state.status === 'LISTENING' && !isListening) {
       // タイムアウトまたはエラーが発生し、音声認識が停止した場合
-      playRecordingStopSound()
+      playRecordingStopSound().catch(console.error)
 
       // 音声が聞き取れなかった場合はゲームオーバー
       if (error === '音声が聞き取れませんでした') {
@@ -59,17 +60,15 @@ export function GameClient() {
     }
   }, [error, state.status, isListening, dispatch, resetTranscript])
 
-  // Speak CPU responses
+  // Speak game start message (しりとり)
   useEffect(() => {
-    if (state.turn === 'USER' && state.currentWord && state.messages.length > 0) {
-      const lastMessage = state.messages[state.messages.length - 1]
-      if (lastMessage.sender === 'CPU' && voiceEnabled) {
-        speak(lastMessage.text).catch((err) => {
-          console.warn('Failed to speak:', err)
-        })
-      }
+    // ゲーム開始時の「しりとり」発話のみ
+    if (state.status === 'PLAYING' && state.usedWords.length === 1 && state.currentWord === 'しりとり' && voiceEnabled) {
+      speak('しりとり').catch((err) => {
+        console.warn('Failed to speak:', err)
+      })
     }
-  }, [state.messages, state.turn, state.currentWord, voiceEnabled])
+  }, [state.status, state.usedWords.length, state.currentWord, voiceEnabled])
 
   /**
    * Start game
@@ -84,12 +83,15 @@ export function GameClient() {
    * Handle voice input start
    * 音声入力開始
    */
-  const handleVoiceStart = () => {
+  const handleVoiceStart = async () => {
     setUserInput('')
     setShowConfirm(false)
     resetTranscript()
     dispatch({ type: 'SET_STATUS', payload: 'LISTENING' })
-    playRecordingStartSound()
+
+    // 効果音を再生して完了を待つ
+    await playRecordingStartSound().catch(console.error)
+
     startListening()
   }
 
@@ -150,8 +152,15 @@ export function GameClient() {
       return
     }
 
-    // CPU response
+    // CPU response - 先にdispatchしてUIを更新
     dispatch({ type: 'CPU_RESPONSE', payload: cpuWord })
+
+    // 音声発話を待つ（モバイルでスキップされないように）
+    if (voiceEnabled) {
+      await speak(cpuWord).catch((err) => {
+        console.warn('Failed to speak CPU response:', err)
+      })
+    }
   }
 
   /**
