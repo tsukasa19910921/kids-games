@@ -78,7 +78,7 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     recognition.continuous = false
 
     // Event: Recognition result
-    recognition.onresult = async (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
       const results = event.results[0]
 
       // スコア付き候補を作成
@@ -114,35 +114,47 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       ))
       console.log('Selected candidate:', bestResult)
 
-      // 漢字が残っている場合は形態素解析で読みに変換
-      if (containsKanji(bestResult)) {
-        console.log('Converting kanji to hiragana...')
-        try {
-          bestResult = await convertKanjiToHiragana(bestResult)
-          console.log('Converted to:', bestResult)
-        } catch (error) {
-          console.error('Failed to convert kanji:', error)
-          // エラー時はそのまま続行（バリデーションで弾かれる）
-        }
-      }
-
-      // 数字・全角英数を変換
-      bestResult = convertNumbersToHiragana(bestResult)
-
-      // 既存の正規化を適用
-      const normalized = normalizeKana(bestResult)
-      console.log('Final result:', normalized)
-
       // Clear timer
       if (timerRef.current) {
         clearInterval(timerRef.current)
         timerRef.current = null
       }
 
+      // 重要: hasResultRefを先に立てる（onendで誤判定されないため）
       hasResultRef.current = true
-      setTranscript(normalized)
       setIsListening(false)
       setTimeLeft(5)
+
+      // 漢字が残っている場合は形態素解析で読みに変換（非同期）
+      if (containsKanji(bestResult)) {
+        console.log('Converting kanji to hiragana...')
+
+        // 非同期処理を開始（Promiseとして実行）
+        convertKanjiToHiragana(bestResult)
+          .then(converted => {
+            console.log('Converted to:', converted)
+            // 数字・全角英数を変換
+            const withNumbers = convertNumbersToHiragana(converted)
+            // 既存の正規化を適用
+            const normalized = normalizeKana(withNumbers)
+            console.log('Final result:', normalized)
+            setTranscript(normalized)
+          })
+          .catch(error => {
+            console.error('Failed to convert kanji:', error)
+            // エラー時は元のテキストで続行
+            const withNumbers = convertNumbersToHiragana(bestResult)
+            const normalized = normalizeKana(withNumbers)
+            console.log('Fallback result:', normalized)
+            setTranscript(normalized)
+          })
+      } else {
+        // 漢字がない場合は同期的に処理
+        const withNumbers = convertNumbersToHiragana(bestResult)
+        const normalized = normalizeKana(withNumbers)
+        console.log('Final result:', normalized)
+        setTranscript(normalized)
+      }
     }
 
     // Event: Recognition error
