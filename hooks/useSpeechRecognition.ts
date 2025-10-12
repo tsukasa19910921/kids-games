@@ -129,10 +129,16 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       if (containsKanji(bestResult)) {
         console.log('Converting kanji to hiragana...')
 
-        // 非同期処理を開始（Promiseとして実行）
-        convertKanjiToHiragana(bestResult)
+        // 非同期処理を開始（タイムアウト: 2秒）
+        // モバイルデバイスでは辞書ロードが遅い可能性があるため短めに設定
+        convertKanjiToHiragana(bestResult, 2000)
           .then(converted => {
-            console.log('Converted to:', converted)
+            // 変換成功
+            if (converted !== bestResult) {
+              console.log('Converted to:', converted)
+            } else {
+              console.log('Conversion failed, using original text')
+            }
             // 数字・全角英数を変換
             const withNumbers = convertNumbersToHiragana(converted)
             // 既存の正規化を適用
@@ -142,10 +148,10 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
           })
           .catch(error => {
             console.error('Failed to convert kanji:', error)
-            // エラー時は元のテキストで続行
+            // エラー時は元のテキストで続行（バリデーションで漢字エラーとなる）
             const withNumbers = convertNumbersToHiragana(bestResult)
             const normalized = normalizeKana(withNumbers)
-            console.log('Fallback result:', normalized)
+            console.log('Fallback result (with kanji):', normalized)
             setTranscript(normalized)
           })
       } else {

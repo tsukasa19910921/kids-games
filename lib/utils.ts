@@ -453,13 +453,48 @@ export function calculateKanaProportion(text: string): number {
 }
 
 /**
+ * Create a promise that rejects after a timeout
+ * タイムアウト付きのPromiseを作成
+ */
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout')), timeoutMs)
+    )
+  ])
+}
+
+/**
+ * Preload kuromoji dictionary (call this on game initialization)
+ * kuromoji辞書の事前ロード（ゲーム初期化時に呼び出す）
+ *
+ * @returns true if successfully loaded, false otherwise
+ */
+export async function preloadKuromojiDictionary(): Promise<boolean> {
+  try {
+    console.log('Preloading kuromoji dictionary...')
+    await withTimeout(getTokenizer(), 5000)
+    console.log('Dictionary loaded successfully')
+    return true
+  } catch (error) {
+    console.warn('Failed to preload dictionary:', error)
+    return false
+  }
+}
+
+/**
  * Convert kanji to hiragana using morphological analysis (kuromoji)
  * 形態素解析を使った漢字→ひらがな変換
  *
  * @param text - 漢字を含む文字列
+ * @param timeoutMs - タイムアウト時間（ミリ秒）デフォルト: 3000ms
  * @returns ひらがなに変換された文字列
  */
-export async function convertKanjiToHiragana(text: string): Promise<string> {
+export async function convertKanjiToHiragana(
+  text: string,
+  timeoutMs: number = 3000
+): Promise<string> {
   if (!text) return ''
 
   // 漢字が含まれていない場合はそのまま返す
@@ -468,7 +503,8 @@ export async function convertKanjiToHiragana(text: string): Promise<string> {
   }
 
   try {
-    const tokenizer = await getTokenizer()
+    // タイムアウト付きで辞書をロード
+    const tokenizer = await withTimeout(getTokenizer(), timeoutMs)
     const tokens = tokenizer.tokenize(text)
 
     // 各トークンの読みを連結
@@ -482,8 +518,13 @@ export async function convertKanjiToHiragana(text: string): Promise<string> {
     // カタカナをひらがなに変換
     return katakanaToHiragana(katakana)
   } catch (error) {
-    console.error('Failed to convert kanji to hiragana:', error)
+    if (error instanceof Error && error.message === 'Timeout') {
+      console.warn('Kanji conversion timed out, using original text:', text)
+    } else {
+      console.error('Failed to convert kanji to hiragana:', error)
+    }
     // エラー時は元のテキストを返す（フォールバック）
+    // ゲームのバリデーションで漢字チェックされるため、そこで弾かれる
     return text
   }
 }
