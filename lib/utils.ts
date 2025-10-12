@@ -3,6 +3,40 @@
  * 文字正規化としりとりゲームロジックのためのユーティリティ関数
  */
 
+import kuromoji from 'kuromoji'
+
+// Tokenizer singleton instance
+let tokenizerInstance: kuromoji.Tokenizer<kuromoji.IpadicFeatures> | null = null
+let tokenizerPromise: Promise<kuromoji.Tokenizer<kuromoji.IpadicFeatures>> | null = null
+
+/**
+ * Get or initialize the kuromoji tokenizer (singleton pattern)
+ * kuromoji トークナイザーの取得または初期化（シングルトンパターン）
+ */
+function getTokenizer(): Promise<kuromoji.Tokenizer<kuromoji.IpadicFeatures>> {
+  if (tokenizerInstance) {
+    return Promise.resolve(tokenizerInstance)
+  }
+
+  if (tokenizerPromise) {
+    return tokenizerPromise
+  }
+
+  tokenizerPromise = new Promise((resolve, reject) => {
+    kuromoji.builder({ dicPath: '/dict' }).build((err, tokenizer) => {
+      if (err) {
+        tokenizerPromise = null
+        reject(err)
+      } else {
+        tokenizerInstance = tokenizer
+        resolve(tokenizer)
+      }
+    })
+  })
+
+  return tokenizerPromise
+}
+
 /**
  * Remove special characters, punctuation, and spaces
  * 特殊文字、句読点、スペースを除去
@@ -29,12 +63,8 @@ export function normalizeKana(text: string): string {
   // Remove special characters first
   normalized = removeSpecialCharacters(normalized)
 
-  // Convert katakana to hiragana (excluding special characters like ー)
-  normalized = normalized.replace(/[\u30A1-\u30F6]/g, (char) => {
-    // Skip the long vowel mark ー (U+30FC)
-    if (char === 'ー') return char
-    return String.fromCharCode(char.charCodeAt(0) - 0x60)
-  })
+  // Convert katakana to hiragana
+  normalized = katakanaToHiragana(normalized)
 
   // Convert small kana to regular kana
   const smallKanaMap: Record<string, string> = {
@@ -201,6 +231,22 @@ const ROMAJI_TABLE: Record<string, string> = {
 }
 
 /**
+ * Convert katakana to hiragana
+ * カタカナをひらがなに変換
+ *
+ * @param text - カタカナ文字列
+ * @returns ひらがな文字列
+ */
+export function katakanaToHiragana(text: string): string {
+  if (!text) return ''
+  return text.replace(/[\u30A1-\u30F6]/g, (char) => {
+    // Skip the long vowel mark ー (U+30FC)
+    if (char === 'ー') return char
+    return String.fromCharCode(char.charCodeAt(0) - 0x60)
+  })
+}
+
+/**
  * Convert hiragana/katakana to uppercase romaji
  * ひらがな/カタカナを大文字ローマ字に変換
  *
@@ -211,10 +257,7 @@ export function kanaToRomaji(kana: string): string {
   if (!kana) return ''
 
   // カタカナをひらがなに変換
-  let hiragana = kana.replace(/[\u30A1-\u30F6]/g, (char) => {
-    if (char === 'ー') return char
-    return String.fromCharCode(char.charCodeAt(0) - 0x60)
-  })
+  let hiragana = katakanaToHiragana(kana)
 
   // 長音記号を除去
   hiragana = hiragana.replace(/ー/g, '')
@@ -304,10 +347,7 @@ export function kanaToRomajiSegments(kana: string): Array<{ kana: string, romaji
   if (!kana) return []
 
   // カタカナをひらがなに変換
-  let hiragana = kana.replace(/[\u30A1-\u30F6]/g, (char) => {
-    if (char === 'ー') return char
-    return String.fromCharCode(char.charCodeAt(0) - 0x60)
-  })
+  let hiragana = katakanaToHiragana(kana)
 
   // 長音記号を除去
   hiragana = hiragana.replace(/ー/g, '')
@@ -351,4 +391,99 @@ export function kanaToRomajiSegments(kana: string): Array<{ kana: string, romaji
   }
 
   return segments
+}
+
+/**
+ * Convert numbers and full-width alphanumeric characters to hiragana
+ * 数字・全角英数をひらがなに変換
+ *
+ * @param text - 変換する文字列
+ * @returns ひらがなに変換された文字列
+ */
+export function convertNumbersToHiragana(text: string): string {
+  if (!text) return ''
+
+  // 全角英数字を半角に変換
+  let converted = text.replace(/[Ａ-Ｚａ-ｚ０-９]/g, (char) => {
+    return String.fromCharCode(char.charCodeAt(0) - 0xFEE0)
+  })
+
+  // 数字の読みマップ（0-9）
+  const numberMap: Record<string, string> = {
+    '0': 'ぜろ',
+    '1': 'いち',
+    '2': 'に',
+    '3': 'さん',
+    '4': 'よん',
+    '5': 'ご',
+    '6': 'ろく',
+    '7': 'なな',
+    '8': 'はち',
+    '9': 'きゅう'
+  }
+
+  // 数字を1文字ずつひらがなに変換
+  converted = converted.replace(/[0-9]/g, (digit) => {
+    return numberMap[digit] || digit
+  })
+
+  // 全角英字を小文字化（そのまま残す or 削除するかは要件次第）
+  // ここでは基本的に英字は削除する想定
+  converted = converted.replace(/[A-Za-z]/g, '')
+
+  return converted
+}
+
+/**
+ * Calculate the proportion of kana characters in text
+ * テキスト内のかな文字の比率を計算
+ *
+ * @param text - チェックする文字列
+ * @returns かな文字の比率（0.0 〜 1.0）
+ */
+export function calculateKanaProportion(text: string): number {
+  if (!text) return 0
+
+  const cleaned = removeSpecialCharacters(text)
+  if (cleaned.length === 0) return 0
+
+  // ひらがな・カタカナの文字数をカウント
+  const kanaCount = (cleaned.match(/[\u3040-\u309F\u30A0-\u30FF]/g) || []).length
+  return kanaCount / cleaned.length
+}
+
+/**
+ * Convert kanji to hiragana using morphological analysis (kuromoji)
+ * 形態素解析を使った漢字→ひらがな変換
+ *
+ * @param text - 漢字を含む文字列
+ * @returns ひらがなに変換された文字列
+ */
+export async function convertKanjiToHiragana(text: string): Promise<string> {
+  if (!text) return ''
+
+  // 漢字が含まれていない場合はそのまま返す
+  if (!containsKanji(text)) {
+    return text
+  }
+
+  try {
+    const tokenizer = await getTokenizer()
+    const tokens = tokenizer.tokenize(text)
+
+    // 各トークンの読みを連結
+    const katakana = tokens
+      .map(token => {
+        // reading がある場合はそれを使用、なければ surface_form（元の文字列）
+        return token.reading || token.surface_form
+      })
+      .join('')
+
+    // カタカナをひらがなに変換
+    return katakanaToHiragana(katakana)
+  } catch (error) {
+    console.error('Failed to convert kanji to hiragana:', error)
+    // エラー時は元のテキストを返す（フォールバック）
+    return text
+  }
 }

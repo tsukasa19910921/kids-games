@@ -6,7 +6,24 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { normalizeKana } from '@/lib/utils'
+import {
+  normalizeKana,
+  containsKanji,
+  convertKanjiToHiragana,
+  convertNumbersToHiragana,
+  calculateKanaProportion
+} from '@/lib/utils'
+
+/**
+ * Scored candidate for speech recognition result prioritization
+ * 音声認識結果の優先順位付けのためのスコア付き候補
+ */
+interface ScoredCandidate {
+  text: string
+  confidence: number
+  hasOnlyKana: boolean
+  kanaProportion: number
+}
 
 interface UseSpeechRecognitionReturn {
   isListening: boolean
@@ -61,27 +78,60 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     recognition.continuous = false
 
     // Event: Recognition result
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = async (event: SpeechRecognitionEvent) => {
       const results = event.results[0]
 
-      // 複数の候補からひらがな・カタカナのみの結果を優先的に選択
-      let bestResult = results[0].transcript
+      // スコア付き候補を作成
+      const candidates: ScoredCandidate[] = Array.from(results).map(result => ({
+        text: result.transcript,
+        confidence: result.confidence,
+        hasOnlyKana: !containsKanji(result.transcript),
+        kanaProportion: calculateKanaProportion(result.transcript)
+      }))
 
-      for (let i = 0; i < results.length; i++) {
-        const candidate = results[i].transcript
-        const normalized = normalizeKana(candidate)
+      // 優先順位に基づいてソート
+      // 1. かな完全一致（漢字なし）
+      // 2. かな比率が高い
+      // 3. 信頼度が高い
+      candidates.sort((a, b) => {
+        // かな完全一致を最優先
+        if (a.hasOnlyKana && !b.hasOnlyKana) return -1
+        if (!a.hasOnlyKana && b.hasOnlyKana) return 1
 
-        // 漢字が含まれていない候補を見つけたら優先
-        if (!/[\u4E00-\u9FFF]/.test(normalized)) {
-          bestResult = candidate
-          console.log(`Selected candidate ${i}: "${candidate}" (no kanji)`)
-          break
+        // かな比率で比較
+        if (Math.abs(a.kanaProportion - b.kanaProportion) > 0.1) {
+          return b.kanaProportion - a.kanaProportion
+        }
+
+        // 信頼度で比較
+        return b.confidence - a.confidence
+      })
+
+      let bestResult = candidates[0].text
+
+      console.log('All candidates:', candidates.map((c, i) =>
+        `[${i}] "${c.text}" (kana: ${c.hasOnlyKana ? 'yes' : 'no'}, prop: ${c.kanaProportion.toFixed(2)}, conf: ${c.confidence.toFixed(2)})`
+      ))
+      console.log('Selected candidate:', bestResult)
+
+      // 漢字が残っている場合は形態素解析で読みに変換
+      if (containsKanji(bestResult)) {
+        console.log('Converting kanji to hiragana...')
+        try {
+          bestResult = await convertKanjiToHiragana(bestResult)
+          console.log('Converted to:', bestResult)
+        } catch (error) {
+          console.error('Failed to convert kanji:', error)
+          // エラー時はそのまま続行（バリデーションで弾かれる）
         }
       }
 
+      // 数字・全角英数を変換
+      bestResult = convertNumbersToHiragana(bestResult)
+
+      // 既存の正規化を適用
       const normalized = normalizeKana(bestResult)
-      console.log('Speech recognized:', bestResult, '→', normalized)
-      console.log('All candidates:', Array.from(results).map(r => r.transcript))
+      console.log('Final result:', normalized)
 
       // Clear timer
       if (timerRef.current) {
