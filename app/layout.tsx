@@ -16,11 +16,16 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL('https://kids-games-jp.vercel.app'),
   title: {
-    default: 'こどもしりとり - 音声で遊ぶしりとりゲーム',
+    default: 'こどもしりとり｜声で遊ぶ・タイピングが学べる',
     template: '%s | こどもしりとり',
   },
-  description: '音声認識でしりとりが楽しめる子供向けWebアプリ。マイクで話すだけでコンピュータと対戦できます。Next.js 15 + Web Speech APIで実装。',
-  keywords: ['しりとり', '子供向けゲーム', '音声認識', 'Web Speech API', 'Next.js', 'TypeScript', '教育アプリ'],
+  description: '声でしりとり、キーボードでタイピング練習。遊びながら語彙力とローマ字入力が身につく。広告なし・無料で安心。幼児〜小学生の情報教育に最適。',
+  keywords: [
+    'しりとり', '子供向けゲーム', '幼児', '小学生',
+    'タイピング', 'ローマ字', 'キーボード',
+    '音声認識', '親子', '言葉あそび', '知育', 'ひらがな', '語彙力',
+    '情報教育', 'ICT教育', '無料', '広告なし'
+  ],
   authors: [{ name: 'tsukasa19910921' }],
   creator: 'tsukasa19910921',
   publisher: 'tsukasa19910921',
@@ -34,21 +39,21 @@ export const metadata: Metadata = {
     locale: 'ja_JP',
     url: 'https://kids-games-jp.vercel.app',
     siteName: 'こどもしりとり',
-    title: 'こどもしりとり - 音声で遊ぶしりとりゲーム',
-    description: '音声認識でしりとりが楽しめる子供向けWebアプリ。マイクで話すだけでコンピュータと対戦できます。',
+    title: 'こどもしりとり｜声で遊ぶ・タイピングが学べる',
+    description: '声でしりとり、キーボードでタイピング練習。広告なし・無料で安心。幼児〜小学生の語彙力とローマ字入力が育つ。',
     images: [
       {
         url: '/images/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'こどもしりとり',
+        alt: 'こどもしりとり - 声で遊ぶ・タイピングが学べる',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'こどもしりとり - 音声で遊ぶしりとりゲーム',
-    description: '音声認識でしりとりが楽しめる子供向けWebアプリ。マイクで話すだけでコンピュータと対戦できます。',
+    title: 'こどもしりとり｜声で遊ぶ・タイピングが学べる',
+    description: 'しりとりで遊びながら、タイピング練習とひらがな学習。無料・広告なし。',
     images: ['/images/og-image.png'],
   },
   robots: {
@@ -68,6 +73,9 @@ export const metadata: Metadata = {
     apple: '/images/icon.png',
   },
   manifest: '/manifest.json',
+  alternates: {
+    canonical: '/',
+  },
 };
 
 export default function RootLayout({
@@ -80,6 +88,29 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        {/* 構造化データ（JSON-LD） - Googleにアプリ情報を伝える */}
+        <Script id="ld-webapp" type="application/ld+json" strategy="afterInteractive">
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'WebApplication',
+            name: 'こどもしりとり',
+            applicationCategory: 'EducationalApplication',
+            about: '音声認識としりとりで遊びながら、タイピング練習とひらがな学習ができる子供向け教育アプリ',
+            operatingSystem: 'Web',
+            inLanguage: 'ja',
+            offers: {
+              '@type': 'Offer',
+              price: '0',
+              priceCurrency: 'JPY',
+            },
+            isFamilyFriendly: true,
+            educationalUse: ['タイピング練習', '語彙学習', 'ひらがな学習'],
+            typicalAgeRange: '4-12',
+            url: 'https://kids-games-jp.vercel.app',
+            description: '親子で声とキーボードで楽しめる。語彙力とタイピングが育つしりとり。広告なし・無料。',
+          })}
+        </Script>
+
         {/* Google Analytics */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-22KSQYGQ88"

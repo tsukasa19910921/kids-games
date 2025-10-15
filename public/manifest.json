@@ -1,7 +1,7 @@
 {
-  "name": "こどもしりとり - 音声で遊ぶしりとりゲーム",
+  "name": "こどもしりとり｜声で遊ぶ・タイピングが学べる",
   "short_name": "こどもしりとり",
-  "description": "音声認識でしりとりが楽しめる子供向けWebアプリ",
+  "description": "しりとりで遊びながらタイピング練習。声で答えて、キーボードで入力。語彙力とローマ字入力が育つ。広告なし・無料。",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -11,24 +11,26 @@
   "icons": [
     {
       "src": "/images/icon.png",
-      "sizes": "any",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/images/icon.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any"
     },
     {
       "src": "/images/icon.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "maskable"
     }
   ],
-  "categories": ["education", "games", "kids"],
+  "categories": ["kids", "education", "games"],
+  "shortcuts": [
+    {
+      "name": "すぐにあそぶ",
+      "url": "/",
+      "description": "しりとりを今すぐ開始",
+      "icons": [{ "src": "/images/icon.png", "sizes": "192x192" }]
+    }
+  ],
   "scope": "/",
   "dir": "ltr"
 }
