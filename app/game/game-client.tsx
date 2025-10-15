@@ -19,6 +19,7 @@ export function GameClient() {
   const [voiceEnabled, setVoiceEnabled] = useState(true)
   const [typingPracticeEnabled, setTypingPracticeEnabled] = useState(false)
   const [typingCompleted, setTypingCompleted] = useState(false)
+  const [hasSpokenInitialWord, setHasSpokenInitialWord] = useState(false)
 
   // Initialize speech synthesis and sounds
   useEffect(() => {
@@ -62,13 +63,14 @@ export function GameClient() {
 
   // Speak game start message (しりとり)
   useEffect(() => {
-    // ゲーム開始時の「しりとり」発話のみ
-    if (state.status === 'PLAYING' && state.usedWords.length === 1 && state.currentWord === 'しりとり' && voiceEnabled) {
+    // ゲーム開始時の「しりとり」発話のみ（1回だけ）
+    if (state.status === 'PLAYING' && state.usedWords.length === 1 && state.currentWord === 'しりとり' && voiceEnabled && !hasSpokenInitialWord) {
+      setHasSpokenInitialWord(true)
       speak('しりとり').catch((err) => {
         console.warn('Failed to speak:', err)
       })
     }
-  }, [state.status, state.usedWords.length, state.currentWord, voiceEnabled])
+  }, [state.status, state.usedWords.length, state.currentWord, voiceEnabled, hasSpokenInitialWord])
 
   /**
    * Start game
@@ -121,24 +123,30 @@ export function GameClient() {
     }
 
     // User input is valid
+    // Calculate updated usedWords to pass to CPU (React state update is async)
+    const updatedUsedWords = [...state.usedWords, userInput]
+
     dispatch({ type: 'USER_INPUT', payload: userInput })
     setShowConfirm(false)
     setUserInput('')
 
     // CPU's turn
-    await handleCPUTurn(userInput)
+    // Pass previousWord (for getting last kana) and updatedUsedWords (for duplicate check)
+    await handleCPUTurn(userInput, updatedUsedWords)
   }
 
   /**
    * Handle CPU turn
    * CPUターン処理
+   * @param previousWord - ユーザーの入力単語（語尾文字取得用）
+   * @param usedWords - 既出語リスト（previousWordを含む）
    */
-  const handleCPUTurn = async (previousWord: string) => {
+  const handleCPUTurn = async (previousWord: string, usedWords: string[]) => {
     // Thinking animation
     await cpuThink()
 
     // Generate CPU response
-    const cpuWord = generateCPUResponse(previousWord, [...state.usedWords, previousWord])
+    const cpuWord = generateCPUResponse(previousWord, usedWords)
 
     if (!cpuWord) {
       // CPU loses (no words available)
@@ -171,6 +179,7 @@ export function GameClient() {
     dispatch({ type: 'RESET' })
     setUserInput('')
     setShowConfirm(false)
+    setHasSpokenInitialWord(false)
     resetTranscript()
   }
 

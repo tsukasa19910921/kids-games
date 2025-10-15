@@ -60,7 +60,7 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
 
     // Check browser support
     const SpeechRecognition =
-      window.SpeechRecognition || (window as any).webkitSpeechRecognition
+      window.SpeechRecognition || window.webkitSpeechRecognition
 
     if (!SpeechRecognition) {
       setError('お使いのブラウザは音声認識に対応していません')
@@ -107,7 +107,7 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
         return b.confidence - a.confidence
       })
 
-      let bestResult = candidates[0].text
+      const bestResult = candidates[0].text
 
       console.log('All candidates:', candidates.map((c, i) =>
         `[${i}] "${c.text}" (kana: ${c.hasOnlyKana ? 'yes' : 'no'}, prop: ${c.kanaProportion.toFixed(2)}, conf: ${c.confidence.toFixed(2)})`
