@@ -29,21 +29,27 @@ export function GameClient() {
 
   // ★PROCESSING状態への自動遷移
   useEffect(() => {
+    alert(`DEBUG: GameClient useEffect - isProcessing=${isProcessing}, status=${state.status}`)  // DEBUG
     if (isProcessing && state.status === 'LISTENING') {
       console.log('[GameClient] isProcessing=true detected, transitioning to PROCESSING')
+      alert('DEBUG: GameClient - LISTENING→PROCESSING遷移実行')  // DEBUG
       dispatch({ type: 'SET_STATUS', payload: 'PROCESSING' })
+      alert('DEBUG: GameClient - dispatch完了')  // DEBUG
     }
   }, [isProcessing, state.status, dispatch])
 
   // Handle speech recognition result (PROCESSING対応)
   useEffect(() => {
+    alert(`DEBUG: GameClient transcript useEffect - transcript="${transcript}", status=${state.status}`)  // DEBUG
     if (transcript && state.status === 'PROCESSING') {
       console.log('[GameClient] Transcript received in PROCESSING state:', transcript)
+      alert(`DEBUG: GameClient - transcript受信: ${transcript}`)  // DEBUG
       // 録音停止音は既にuseSpeechRecognitionで鳴っている
       setUserInput(transcript)
       setShowConfirm(true)
       setTypingCompleted(false)  // タイピング状態をリセット
       dispatch({ type: 'SET_STATUS', payload: 'PLAYING' })
+      alert('DEBUG: GameClient - PROCESSING→PLAYING遷移完了')  // DEBUG
     }
   }, [transcript, state.status, dispatch])
 

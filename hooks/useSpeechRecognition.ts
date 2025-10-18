@@ -125,6 +125,7 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       // 3. 録音停止音を即座に発する
       await playRecordingStopSound()
       console.log('[Phase A] Recording stop sound played')
+      alert('DEBUG: 音声停止完了')  // DEBUG
 
       // 4. 空文字列チェック
       if (bestResult.trim() === '') {
@@ -136,7 +137,9 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       // ★★★ Phase B: PROCESSING状態への遷移（汎用設計） ★★★
       // すべての後処理をPROCESSINGに包含
       console.log('[Phase B] Starting PROCESSING state')
+      alert('DEBUG: Phase B開始')  // DEBUG
       setIsProcessing(true)
+      alert('DEBUG: isProcessing=true設定完了')  // DEBUG
 
       // ⭐ 重要：Reactの再レンダリングを確実に発生させる待機処理
       //
@@ -159,7 +162,9 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       // 【将来のメンテナーへ】
       // この待機処理を削除すると、同期処理（漢字なしの場合）で状態遷移が
       // スキップされ、UIがフリーズしたように見える不具合が再発します。
+      alert('DEBUG: setTimeout(0)前')  // DEBUG
       await new Promise(resolve => setTimeout(resolve, 0))
+      alert('DEBUG: setTimeout(0)後')  // DEBUG
       console.log('[Phase B] isProcessing state reflected (React re-rendered)')
 
       try {
@@ -167,8 +172,10 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
 
         // 漢字変換（必要な場合）
         if (containsKanji(processedText)) {
+          alert('DEBUG: 漢字変換開始')  // DEBUG
           console.log('Converting kanji to hiragana...')
           const converted = await convertKanjiToHiragana(processedText, 3000)  // ★3秒に延長
+          alert('DEBUG: 漢字変換完了')  // DEBUG
           processedText = converted !== processedText ? converted : processedText
 
           if (converted !== bestResult) {
@@ -191,7 +198,9 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
 
         // ★★★ Phase C: 最終結果設定 ★★★
         console.log('[Phase C] Setting transcript')
+        alert(`DEBUG: Phase C - transcript設定前: ${processedText}`)  // DEBUG
         setTranscript(processedText)
+        alert('DEBUG: transcript設定完了')  // DEBUG
 
         // ⭐ 重要：transcriptの状態反映を確実に待つ
         //
@@ -212,11 +221,14 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
         // 4. その後 isProcessing=false になる
         //
         // という正しいシーケンスが保証されます。
+        alert('DEBUG: Phase C setTimeout(0)前')  // DEBUG
         await new Promise(resolve => setTimeout(resolve, 0))
+        alert('DEBUG: Phase C setTimeout(0)後')  // DEBUG
         console.log('[Phase C] Transcript state reflected (React re-rendered)')
 
       } catch (error) {
         console.error('Processing failed:', error)
+        alert(`DEBUG: エラー発生: ${error}`)  // DEBUG
         // フォールバック：最小限の処理で続行
         const fallback = normalizeKanaKeepLongVowel(convertNumbersToHiragana(bestResult))
         console.log('Fallback result:', fallback)
@@ -227,8 +239,10 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
         console.log('[Fallback] Transcript state reflected (React re-rendered)')
       } finally {
         // PROCESSING終了
+        alert('DEBUG: finallyブロック - isProcessing=false設定前')  // DEBUG
         console.log('[Phase B] PROCESSING complete, setting isProcessing=false')
         setIsProcessing(false)
+        alert('DEBUG: isProcessing=false設定完了')  // DEBUG
       }
     }
 
