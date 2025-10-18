@@ -153,22 +153,26 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       // useEffectが isProcessing=true の中間状態を検知できません。
       //
       // 【解決策】
-      // setTimeout(0) を使ってイベントループの次のターンまで待機することで、
-      // Reactの再レンダリングサイクルを確実に挟みます。これにより：
+      // setTimeout(100) で100ms待機することで、以下を保証します：
       // 1. setIsProcessing(true) の状態がGameClientに反映される
       // 2. GameClientのuseEffectが発火してPROCESSING状態に遷移する
       // 3. UIに「処理中...」が表示される
       //
-      // 【将来のメンテナーへ】
-      // この待機処理を削除すると、同期処理（漢字なしの場合）で状態遷移が
-      // スキップされ、UIがフリーズしたように見える不具合が再発します。
+      // 【なぜ100msか】
+      // - PCでは setTimeout(0) でも十分だが、スマホでは不足
+      // - スマホでは dispatch の反映に50ms程度かかることがある
+      // - 100msは人間には気づかれない程度の遅延
+      // - 漢字変換（最大3000ms）と比べれば無視できる
       //
-      // 【補足】スマホでは dispatch の反映が遅いため、PCでは成功しても
-      // スマホでは失敗する可能性があります。GameClient側で LISTENING状態でも
-      // 受け入れるフォールバック処理を併用しています。
-      alert('DEBUG: setTimeout(0)前')  // DEBUG
-      await new Promise(resolve => setTimeout(resolve, 0))
-      alert('DEBUG: setTimeout(0)後')  // DEBUG
+      // 【将来のメンテナーへ】
+      // この待機処理を削除、または短縮すると、スマホで「聞いています...」
+      // 画面のまま固着したように見える不具合が再発します。
+      //
+      // 【フォールバック】GameClient側で LISTENING状態でも受け入れる
+      // 二重の保険により、万が一100msでも間に合わない場合に対応。
+      alert('DEBUG: setTimeout(100)前')  // DEBUG
+      await new Promise(resolve => setTimeout(resolve, 100))
+      alert('DEBUG: setTimeout(100)後')  // DEBUG
       console.log('[Phase B] isProcessing state reflected (React re-rendered)')
 
       try {
