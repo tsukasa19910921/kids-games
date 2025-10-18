@@ -67,8 +67,8 @@ export function TypingPractice({ targetWord, onComplete, onConfirm }: TypingPrac
 
     const upperKey = key.toUpperCase()
 
-    // アルファベットキーのみ処理
-    if (!/^[A-Z]$/.test(upperKey)) {
+    // アルファベットとハイフンのみ処理（長音記号「ー」は「-」に変換）
+    if (!/^[A-Z-]$/.test(upperKey)) {
       event.preventDefault()
       return
     }
@@ -116,8 +116,8 @@ export function TypingPractice({ targetWord, onComplete, onConfirm }: TypingPrac
 
       const upperKey = key.toUpperCase()
 
-      // アルファベットキーのみ処理
-      if (!/^[A-Z]$/.test(upperKey)) return
+      // アルファベットとハイフンのみ処理（長音記号「ー」は「-」に変換）
+      if (!/^[A-Z-]$/.test(upperKey)) return
 
       const expectedChar = targetRomaji[typedChars]
 

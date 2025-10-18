@@ -48,22 +48,22 @@ export function removeSpecialCharacters(text: string): string {
 }
 
 /**
- * Normalize kana text according to shiritori rules
- * しりとりルールに従ってかなテキストを正規化
+ * Normalize kana text for display and typing (keeps long vowel marks)
+ * 表示・タイピング用のかな正規化（長音記号を保持）
  *
  * Rules:
  * - Convert katakana to hiragana
  * - Convert small kana to regular kana
- * - Remove long vowel marks (ー)
+ * - Keep long vowel marks (ー)
  * - Remove punctuation and spaces
  */
-export function normalizeKana(text: string): string {
+export function normalizeKanaKeepLongVowel(text: string): string {
   let normalized = text
 
   // Remove special characters first
   normalized = removeSpecialCharacters(normalized)
 
-  // Convert katakana to hiragana
+  // Convert katakana to hiragana (preserves ー)
   normalized = katakanaToHiragana(normalized)
 
   // Convert small kana to regular kana
@@ -83,7 +83,25 @@ export function normalizeKana(text: string): string {
     (char) => smallKanaMap[char] || char
   )
 
-  // Remove long vowel marks
+  // Keep long vowel marks (do not remove ー)
+  return normalized
+}
+
+/**
+ * Normalize kana text according to shiritori rules
+ * しりとりルールに従ってかなテキストを正規化
+ *
+ * Rules:
+ * - Convert katakana to hiragana
+ * - Convert small kana to regular kana
+ * - Remove long vowel marks (ー)
+ * - Remove punctuation and spaces
+ */
+export function normalizeKana(text: string): string {
+  // Use the function that keeps long vowel marks first
+  let normalized = normalizeKanaKeepLongVowel(text)
+
+  // Remove long vowel marks for shiritori rule matching
   normalized = normalized.replace(/ー/g, '')
 
   return normalized
@@ -94,6 +112,7 @@ export function normalizeKana(text: string): string {
  * しりとりのための最後のかな文字を取得
  *
  * Special rules:
+ * - If ends with ー (long vowel mark), remove it and get the last character
  * - If ends with ん, return ん
  * - If ends with っ (small tsu), return the character before it
  * - Otherwise return the last character
@@ -105,7 +124,15 @@ export function getLastKana(word: string): string {
   const trimmed = removeSpecialCharacters(word)
   const endsWithSmallTsu = trimmed.endsWith('っ') || trimmed.endsWith('ッ')
 
-  const normalized = normalizeKana(word)
+  // First normalize while keeping long vowel marks
+  const normalizedWithLongVowel = normalizeKanaKeepLongVowel(word)
+
+  // If ends with ー, remove it (for shiritori rule)
+  let normalized = normalizedWithLongVowel
+  while (normalized.endsWith('ー') && normalized.length > 1) {
+    normalized = normalized.slice(0, -1)
+  }
+
   if (!normalized) return ''
 
   // If ends with ん, return it
@@ -259,13 +286,19 @@ export function kanaToRomaji(kana: string): string {
   // カタカナをひらがなに変換
   let hiragana = katakanaToHiragana(kana)
 
-  // 長音記号を除去
-  hiragana = hiragana.replace(/ー/g, '')
+  // 長音記号は保持（タイピング用に"-"に変換）
 
   let result = ''
   let i = 0
 
   while (i < hiragana.length) {
+    // 長音記号の処理
+    if (hiragana[i] === 'ー') {
+      result += '-'
+      i++
+      continue
+    }
+
     // 促音（っ）の処理
     if (hiragana[i] === 'っ' || hiragana[i] === 'ッ') {
       // 次の文字の子音を重ねる
@@ -349,13 +382,19 @@ export function kanaToRomajiSegments(kana: string): Array<{ kana: string, romaji
   // カタカナをひらがなに変換
   let hiragana = katakanaToHiragana(kana)
 
-  // 長音記号を除去
-  hiragana = hiragana.replace(/ー/g, '')
+  // 長音記号は保持
 
   const segments: Array<{ kana: string, romaji: string }> = []
   let i = 0
 
   while (i < hiragana.length) {
+    // 長音記号の処理
+    if (hiragana[i] === 'ー') {
+      segments.push({ kana: 'ー', romaji: '-' })
+      i++
+      continue
+    }
+
     // 促音（っ）の処理
     if (hiragana[i] === 'っ' || hiragana[i] === 'ッ') {
       // 次の文字の子音を重ねる

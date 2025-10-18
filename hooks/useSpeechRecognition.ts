@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
-  normalizeKana,
+  normalizeKanaKeepLongVowel,
   containsKanji,
   convertKanjiToHiragana,
   convertNumbersToHiragana
@@ -132,8 +132,8 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
             }
             // 数字・全角英数を変換
             const withNumbers = convertNumbersToHiragana(converted)
-            // 既存の正規化を適用
-            const normalized = normalizeKana(withNumbers)
+            // 既存の正規化を適用（長音記号を保持）
+            const normalized = normalizeKanaKeepLongVowel(withNumbers)
             console.log('Final result:', normalized)
             setTranscript(normalized)
           })
@@ -141,14 +141,14 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
             console.error('Failed to convert kanji:', error)
             // エラー時は元のテキストで続行（バリデーションで漢字エラーとなる）
             const withNumbers = convertNumbersToHiragana(bestResult)
-            const normalized = normalizeKana(withNumbers)
+            const normalized = normalizeKanaKeepLongVowel(withNumbers)
             console.log('Fallback result (with kanji):', normalized)
             setTranscript(normalized)
           })
       } else {
         // 漢字がない場合は同期的に処理
         const withNumbers = convertNumbersToHiragana(bestResult)
-        const normalized = normalizeKana(withNumbers)
+        const normalized = normalizeKanaKeepLongVowel(withNumbers)
         console.log('Final result:', normalized)
         setTranscript(normalized)
       }
