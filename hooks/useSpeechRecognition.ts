@@ -10,8 +10,7 @@ import {
   normalizeKana,
   containsKanji,
   convertKanjiToHiragana,
-  convertNumbersToHiragana,
-  calculateKanaProportion
+  convertNumbersToHiragana
 } from '@/lib/utils'
 
 /**
@@ -22,7 +21,6 @@ interface ScoredCandidate {
   text: string
   confidence: number
   hasOnlyKana: boolean
-  kanaProportion: number
 }
 
 interface UseSpeechRecognitionReturn {
@@ -85,23 +83,16 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       const candidates: ScoredCandidate[] = Array.from(results).map(result => ({
         text: result.transcript,
         confidence: result.confidence,
-        hasOnlyKana: !containsKanji(result.transcript),
-        kanaProportion: calculateKanaProportion(result.transcript)
+        hasOnlyKana: !containsKanji(result.transcript)
       }))
 
       // 優先順位に基づいてソート
-      // 1. かな完全一致（漢字なし）
-      // 2. かな比率が高い
-      // 3. 信頼度が高い
+      // 1. かな完全一致（漢字なし）を最優先
+      // 2. 信頼度が高い
       candidates.sort((a, b) => {
         // かな完全一致を最優先
         if (a.hasOnlyKana && !b.hasOnlyKana) return -1
         if (!a.hasOnlyKana && b.hasOnlyKana) return 1
-
-        // かな比率で比較
-        if (Math.abs(a.kanaProportion - b.kanaProportion) > 0.1) {
-          return b.kanaProportion - a.kanaProportion
-        }
 
         // 信頼度で比較
         return b.confidence - a.confidence
@@ -110,7 +101,7 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       const bestResult = candidates[0].text
 
       console.log('All candidates:', candidates.map((c, i) =>
-        `[${i}] "${c.text}" (kana: ${c.hasOnlyKana ? 'yes' : 'no'}, prop: ${c.kanaProportion.toFixed(2)}, conf: ${c.confidence.toFixed(2)})`
+        `[${i}] "${c.text}" (kana: ${c.hasOnlyKana ? 'yes' : 'no'}, conf: ${c.confidence.toFixed(2)})`
       ))
       console.log('Selected candidate:', bestResult)
 
