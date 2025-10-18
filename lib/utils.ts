@@ -284,7 +284,7 @@ export function kanaToRomaji(kana: string): string {
   if (!kana) return ''
 
   // カタカナをひらがなに変換
-  let hiragana = katakanaToHiragana(kana)
+  const hiragana = katakanaToHiragana(kana)
 
   // 長音記号は保持（タイピング用に"-"に変換）
 
@@ -380,7 +380,7 @@ export function kanaToRomajiSegments(kana: string): Array<{ kana: string, romaji
   if (!kana) return []
 
   // カタカナをひらがなに変換
-  let hiragana = katakanaToHiragana(kana)
+  const hiragana = katakanaToHiragana(kana)
 
   // 長音記号は保持
 

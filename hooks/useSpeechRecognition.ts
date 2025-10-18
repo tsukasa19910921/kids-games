@@ -12,6 +12,7 @@ import {
   convertKanjiToHiragana,
   convertNumbersToHiragana
 } from '@/lib/utils'
+import { playRecordingStopSound } from '@/lib/sounds'
 
 /**
  * Scored candidate for speech recognition result prioritization
@@ -25,6 +26,7 @@ interface ScoredCandidate {
 
 interface UseSpeechRecognitionReturn {
   isListening: boolean
+  isProcessing: boolean
   transcript: string
   error: string | null
   isSupported: boolean
@@ -40,6 +42,7 @@ interface UseSpeechRecognitionReturn {
  */
 export function useSpeechRecognition(): UseSpeechRecognitionReturn {
   const [isListening, setIsListening] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
   const [transcript, setTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSupported, setIsSupported] = useState(false)
@@ -76,7 +79,7 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     recognition.continuous = false
 
     // Event: Recognition result
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = async (event: SpeechRecognitionEvent) => {
       const results = event.results[0]
 
       // スコア付き候補を作成
@@ -105,52 +108,127 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       ))
       console.log('Selected candidate:', bestResult)
 
-      // Clear timer
+      // ★★★ Phase A: 音声認識完了の即時通知 ★★★
+
+      // 1. タイマークリア
       if (timerRef.current) {
         clearInterval(timerRef.current)
         timerRef.current = null
       }
 
-      // 重要: hasResultRefを先に立てる（onendで誤判定されないため）
+      // 2. 状態更新（onendでの誤判定を防ぐため、音を鳴らす前に設定）
       hasResultRef.current = true
       setIsListening(false)
       setTimeLeft(5)
+      console.log('[Phase A] Recognition completed, flags updated')
 
-      // 漢字が残っている場合は形態素解析で読みに変換（非同期）
-      if (containsKanji(bestResult)) {
-        console.log('Converting kanji to hiragana...')
+      // 3. 録音停止音を即座に発する
+      await playRecordingStopSound()
+      console.log('[Phase A] Recording stop sound played')
 
-        // 非同期処理を開始（タイムアウト: 2秒）
-        // モバイルデバイスでは辞書ロードが遅い可能性があるため短めに設定
-        convertKanjiToHiragana(bestResult, 2000)
-          .then(converted => {
-            // 変換成功
-            if (converted !== bestResult) {
-              console.log('Converted to:', converted)
-            } else {
-              console.log('Conversion failed, using original text')
-            }
-            // 数字・全角英数を変換
-            const withNumbers = convertNumbersToHiragana(converted)
-            // 既存の正規化を適用（長音記号を保持）
-            const normalized = normalizeKanaKeepLongVowel(withNumbers)
-            console.log('Final result:', normalized)
-            setTranscript(normalized)
-          })
-          .catch(error => {
-            console.error('Failed to convert kanji:', error)
-            // エラー時は元のテキストで続行（バリデーションで漢字エラーとなる）
-            const withNumbers = convertNumbersToHiragana(bestResult)
-            const normalized = normalizeKanaKeepLongVowel(withNumbers)
-            console.log('Fallback result (with kanji):', normalized)
-            setTranscript(normalized)
-          })
-      } else {
-        // 漢字がない場合は同期的に処理
-        const withNumbers = convertNumbersToHiragana(bestResult)
-        const normalized = normalizeKanaKeepLongVowel(withNumbers)
-        console.log('Final result:', normalized)
-        setTranscript(normalized)
+      // 4. 空文字列チェック
+      if (bestResult.trim() === '') {
+        console.log('[Phase A] Empty result detected, showing retry dialog')
+        setError('音声が認識できませんでした。もう一度お試しください。')
+        return  // やり直しオプションへ
+      }
+
+      // ★★★ Phase B: PROCESSING状態への遷移（汎用設計） ★★★
+      // すべての後処理をPROCESSINGに包含
+      console.log('[Phase B] Starting PROCESSING state')
+      setIsProcessing(true)
+
+      // ⭐ 重要：Reactの再レンダリングを確実に発生させる待機処理
+      //
+      // 【背景】
+      // React 18の自動バッチングにより、async関数内の複数のstate更新が
+      // 1つのレンダリングサイクルにまとめられてしまいます。
+      //
+      // 【問題】
+      // await Promise.resolve() だけではマイクロタスクキューに追加されるだけで
+      // Reactの再レンダリングは保証されません。結果として、GameClient側の
+      // useEffectが isProcessing=true の中間状態を検知できません。
+      //
+      // 【解決策】
+      // setTimeout(0) を使ってイベントループの次のターンまで待機することで、
+      // Reactの再レンダリングサイクルを確実に挟みます。これにより：
+      // 1. setIsProcessing(true) の状態がGameClientに反映される
+      // 2. GameClientのuseEffectが発火してPROCESSING状態に遷移する
+      // 3. UIに「処理中...」が表示される
+      //
+      // 【将来のメンテナーへ】
+      // この待機処理を削除すると、同期処理（漢字なしの場合）で状態遷移が
+      // スキップされ、UIがフリーズしたように見える不具合が再発します。
+      await new Promise(resolve => setTimeout(resolve, 0))
+      console.log('[Phase B] isProcessing state reflected (React re-rendered)')
+
+      try {
+        let processedText = bestResult
+
+        // 漢字変換（必要な場合）
+        if (containsKanji(processedText)) {
+          console.log('Converting kanji to hiragana...')
+          const converted = await convertKanjiToHiragana(processedText, 3000)  // ★3秒に延長
+          processedText = converted !== processedText ? converted : processedText
+
+          if (converted !== bestResult) {
+            console.log('Converted to:', converted)
+          } else {
+            console.log('Conversion failed, using original text')
+          }
+        }
+
+        // 数字変換
+        processedText = convertNumbersToHiragana(processedText)
+
+        // 正規化（長音記号を保持）
+        processedText = normalizeKanaKeepLongVowel(processedText)
+
+        // 将来のAI処理をここに追加可能
+        // processedText = await enhanceWithAI(processedText)
+
+        console.log('Final result:', processedText)
+
+        // ★★★ Phase C: 最終結果設定 ★★★
+        console.log('[Phase C] Setting transcript')
+        setTranscript(processedText)
+
+        // ⭐ 重要：transcriptの状態反映を確実に待つ
+        //
+        // 【理由】
+        // setTranscript() の直後に setIsProcessing(false) を実行すると、
+        // React 18の自動バッチングにより、GameClient側では以下の状態が
+        // 同時に反映されます：
+        // - transcript: 'りんご'
+        // - isProcessing: false
+        //
+        // この場合、useEffectの条件 `transcript && state.status === 'PROCESSING'`
+        // を満たせず、確認ダイアログが表示されません。
+        //
+        // イベントループのターンを待つことで：
+        // 1. transcript が設定される
+        // 2. GameClientが再レンダリングされ、transcriptを検知する
+        // 3. 確認ダイアログが表示される
+        // 4. その後 isProcessing=false になる
+        //
+        // という正しいシーケンスが保証されます。
+        await new Promise(resolve => setTimeout(resolve, 0))
+        console.log('[Phase C] Transcript state reflected (React re-rendered)')
+
+      } catch (error) {
+        console.error('Processing failed:', error)
+        // フォールバック：最小限の処理で続行
+        const fallback = normalizeKanaKeepLongVowel(convertNumbersToHiragana(bestResult))
+        console.log('Fallback result:', fallback)
+        setTranscript(fallback)
+
+        // フォールバック時も状態反映を待つ（同じ理由）
+        await new Promise(resolve => setTimeout(resolve, 0))
+        console.log('[Fallback] Transcript state reflected (React re-rendered)')
+      } finally {
+        // PROCESSING終了
+        console.log('[Phase B] PROCESSING complete, setting isProcessing=false')
+        setIsProcessing(false)
       }
     }
 
@@ -186,8 +264,15 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
     }
 
     // Event: Recognition end
-    recognition.onend = () => {
-      console.log('Speech recognition ended')
+    recognition.onend = async () => {
+      console.log('[onend] Speech recognition ended, hasResult:', hasResultRef.current)
+
+      // タイムアウト時も録音停止音を発する
+      if (!hasResultRef.current) {
+        console.log('[onend] No result received, playing stop sound and showing error')
+        await playRecordingStopSound()
+        setError('音声が聞き取れませんでした')
+      }
 
       // Clear timer
       if (timerRef.current) {
@@ -197,11 +282,6 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
 
       setIsListening(false)
       setTimeLeft(5)
-
-      // Check if no result was received
-      if (!hasResultRef.current) {
-        setError('音声が聞き取れませんでした')
-      }
     }
 
     // Event: Recognition start
@@ -317,6 +397,7 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
 
   return {
     isListening,
+    isProcessing,
     transcript,
     error,
     isSupported,

@@ -6,7 +6,7 @@
 /**
  * Game status
  */
-export type GameStatus = 'IDLE' | 'PLAYING' | 'LISTENING' | 'THINKING' | 'RESULT'
+export type GameStatus = 'IDLE' | 'PLAYING' | 'LISTENING' | 'PROCESSING' | 'THINKING' | 'RESULT'
 
 /**
  * Turn indicator
@@ -16,7 +16,7 @@ export type Turn = 'USER' | 'CPU'
 /**
  * Lose reason
  */
-export type LoseReason = 'DUPLICATE' | 'N_END' | 'INVALID' | 'NOT_CHAIN' | 'CPU_NO_WORD' | 'NO_SPEECH' | null
+export type LoseReason = 'DUPLICATE' | 'N_END' | 'INVALID' | 'NOT_CHAIN' | 'CPU_NO_WORD' | null
 
 /**
  * Message sender

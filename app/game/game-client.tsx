@@ -7,12 +7,12 @@ import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { validateUserInput, getLoseReasonMessage, determineWinner } from '@/lib/game-logic'
 import { generateCPUResponse, cpuThink } from '@/lib/cpu-logic'
 import { containsKanji } from '@/lib/utils'
-import { playRecordingStartSound, playRecordingStopSound, enableSounds } from '@/lib/sounds'
+import { playRecordingStartSound, enableSounds } from '@/lib/sounds'
 import { TypingPractice } from '@/components/TypingPractice'
 
 export function GameClient() {
   const { state, dispatch } = useGameState()
-  const { isListening, transcript, error, isSupported, timeLeft, startListening, resetTranscript } = useSpeechRecognition()
+  const { isListening, isProcessing, transcript, error, isSupported, timeLeft, startListening, resetTranscript } = useSpeechRecognition()
 
   const [showConfirm, setShowConfirm] = useState(false)
   const [userInput, setUserInput] = useState<string>('')
@@ -27,11 +27,19 @@ export function GameClient() {
     enableSounds()
   }, [])
 
-  // Handle speech recognition result
+  // ★PROCESSING状態への自動遷移
   useEffect(() => {
-    if (transcript && state.status === 'LISTENING') {
-      // 効果音の再生（非同期だが待機はしない、UIがブロックされないように）
-      playRecordingStopSound().catch(console.error)
+    if (isProcessing && state.status === 'LISTENING') {
+      console.log('[GameClient] isProcessing=true detected, transitioning to PROCESSING')
+      dispatch({ type: 'SET_STATUS', payload: 'PROCESSING' })
+    }
+  }, [isProcessing, state.status, dispatch])
+
+  // Handle speech recognition result (PROCESSING対応)
+  useEffect(() => {
+    if (transcript && state.status === 'PROCESSING') {
+      console.log('[GameClient] Transcript received in PROCESSING state:', transcript)
+      // 録音停止音は既にuseSpeechRecognitionで鳴っている
       setUserInput(transcript)
       setShowConfirm(true)
       setTypingCompleted(false)  // タイピング状態をリセット
@@ -41,25 +49,21 @@ export function GameClient() {
 
   // Handle speech recognition timeout/error
   useEffect(() => {
-    if (error && state.status === 'LISTENING' && !isListening) {
-      // タイムアウトまたはエラーが発生し、音声認識が停止した場合
-      playRecordingStopSound().catch(console.error)
-
-      // 音声が聞き取れなかった場合はゲームオーバー
-      if (error === '音声が聞き取れませんでした') {
-        dispatch({ type: 'GAME_OVER', payload: 'NO_SPEECH' })
-        resetTranscript()
-      } else {
-        // その他のエラーはプレイ状態に戻す
-        dispatch({ type: 'SET_STATUS', payload: 'PLAYING' })
-
-        // エラーメッセージは一定時間後に自動的にクリア
-        setTimeout(() => {
-          resetTranscript()
-        }, 3000)
-      }
+    if (error && (state.status === 'LISTENING' || state.status === 'PROCESSING') && !isListening) {
+      console.log('[GameClient] Error detected:', error)
+      // 録音停止音は既にuseSpeechRecognitionで鳴っている
+      // PLAYING状態に戻す（既存のエラー表示とマイク/テキスト入力UIが表示される）
+      dispatch({ type: 'SET_STATUS', payload: 'PLAYING' })
     }
-  }, [error, state.status, isListening, dispatch, resetTranscript])
+  }, [error, state.status, isListening, dispatch])
+
+  // テキスト入力時にエラーをクリア
+  useEffect(() => {
+    if (userInput && error) {
+      console.log('[GameClient] User typed input, clearing error')
+      resetTranscript()
+    }
+  }, [userInput, error, resetTranscript])
 
   // Speak game start message (しりとり)
   useEffect(() => {
@@ -217,6 +221,7 @@ export function GameClient() {
               聞いています... <span className="text-5xl font-extrabold text-red-500 mx-2">{timeLeft}</span>
             </span>
           )}
+          {state.status === 'PROCESSING' && '処理中...'}
           {state.status === 'THINKING' && 'かんがえています...'}
           {state.status === 'RESULT' && 'ゲーム終了'}
         </h2>
@@ -238,6 +243,16 @@ export function GameClient() {
 
       {/* Messages log - Hidden as it duplicates with used words */}
       {/* Removed to simplify UI */}
+
+      {/* 処理中インジケーター */}
+      {state.status === 'PROCESSING' && (
+        <div className="text-center">
+          <div className="inline-block animate-pulse bg-blue-100 text-blue-700 px-6 py-4 rounded-full border-2 border-blue-300">
+            <p className="text-lg font-bold">音声を処理しています...</p>
+            <p className="text-sm text-gray-600 mt-1">しばらくお待ちください</p>
+          </div>
+        </div>
+      )}
 
       {/* Voice/Text input controls */}
       {state.status === 'PLAYING' && state.turn === 'USER' && !showConfirm && (
