@@ -162,6 +162,10 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       // 【将来のメンテナーへ】
       // この待機処理を削除すると、同期処理（漢字なしの場合）で状態遷移が
       // スキップされ、UIがフリーズしたように見える不具合が再発します。
+      //
+      // 【補足】スマホでは dispatch の反映が遅いため、PCでは成功しても
+      // スマホでは失敗する可能性があります。GameClient側で LISTENING状態でも
+      // 受け入れるフォールバック処理を併用しています。
       alert('DEBUG: setTimeout(0)前')  // DEBUG
       await new Promise(resolve => setTimeout(resolve, 0))
       alert('DEBUG: setTimeout(0)後')  // DEBUG
@@ -206,21 +210,22 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
         //
         // 【理由】
         // setTranscript() の直後に setIsProcessing(false) を実行すると、
-        // React 18の自動バッチングにより、GameClient側では以下の状態が
-        // 同時に反映されます：
+        // React 18の自動バッチングにより、以下の状態が同時に反映されます：
         // - transcript: 'りんご'
         // - isProcessing: false
         //
-        // この場合、useEffectの条件 `transcript && state.status === 'PROCESSING'`
-        // を満たせず、確認ダイアログが表示されません。
+        // この場合、GameClient側で transcript を受け取った時点で
+        // isProcessing=false になっており、「処理中」状態を検知できません。
         //
         // イベントループのターンを待つことで：
         // 1. transcript が設定される
-        // 2. GameClientが再レンダリングされ、transcriptを検知する
-        // 3. 確認ダイアログが表示される
-        // 4. その後 isProcessing=false になる
+        // 2. GameClientが再レンダリングされ、transcriptを処理する
+        // 3. その後 isProcessing=false になる
         //
         // という正しいシーケンスが保証されます。
+        //
+        // 【補足】PCでは問題ないが、スマホでは dispatch の反映が遅いため、
+        // GameClient側で LISTENING状態でも受け入れるロバストな設計にしています。
         alert('DEBUG: Phase C setTimeout(0)前')  // DEBUG
         await new Promise(resolve => setTimeout(resolve, 0))
         alert('DEBUG: Phase C setTimeout(0)後')  // DEBUG

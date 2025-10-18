@@ -38,18 +38,19 @@ export function GameClient() {
     }
   }, [isProcessing, state.status, dispatch])
 
-  // Handle speech recognition result (PROCESSING対応)
+  // Handle speech recognition result (LISTENING/PROCESSING対応)
+  // ★重要: LISTENING状態でも受け入れる（スマホでdispatchの反映が遅い場合に対応）
   useEffect(() => {
     alert(`DEBUG: GameClient transcript useEffect - transcript="${transcript}", status=${state.status}`)  // DEBUG
-    if (transcript && state.status === 'PROCESSING') {
-      console.log('[GameClient] Transcript received in PROCESSING state:', transcript)
+    if (transcript && (state.status === 'LISTENING' || state.status === 'PROCESSING')) {
+      console.log('[GameClient] Transcript received:', transcript, 'status:', state.status)
       alert(`DEBUG: GameClient - transcript受信: ${transcript}`)  // DEBUG
       // 録音停止音は既にuseSpeechRecognitionで鳴っている
       setUserInput(transcript)
       setShowConfirm(true)
       setTypingCompleted(false)  // タイピング状態をリセット
       dispatch({ type: 'SET_STATUS', payload: 'PLAYING' })
-      alert('DEBUG: GameClient - PROCESSING→PLAYING遷移完了')  // DEBUG
+      alert('DEBUG: GameClient - →PLAYING遷移完了')  // DEBUG
     }
   }, [transcript, state.status, dispatch])
 
