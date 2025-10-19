@@ -68,6 +68,15 @@ export function GameClient() {
     }
   }, [error, state.status, isListening, dispatch])
 
+  // ⭐ 重要: PROCESSING状態の固着防止（ウォッチドッグのフォールバック）
+  // isProcessing=false になったのに state.status=PROCESSING のままの状態を検知
+  useEffect(() => {
+    if (!isProcessing && state.status === 'PROCESSING') {
+      console.warn('[GameClient] Detected stuck PROCESSING state, forcing back to PLAYING')
+      dispatch({ type: 'SET_STATUS', payload: 'PLAYING' })
+    }
+  }, [isProcessing, state.status, dispatch])
+
   // テキスト入力時にエラーをクリア
   useEffect(() => {
     if (userInput && error) {
