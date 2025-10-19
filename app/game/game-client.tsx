@@ -6,7 +6,7 @@ import { useGameState } from '@/hooks/useGameState'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { validateUserInput, getLoseReasonMessage, determineWinner } from '@/lib/game-logic'
 import { generateCPUResponse, cpuThink } from '@/lib/cpu-logic'
-import { containsKanji } from '@/lib/utils'
+import { containsKanji, preloadKuromojiDictionary } from '@/lib/utils'
 import { playRecordingStartSound, enableSounds } from '@/lib/sounds'
 import { TypingPractice } from '@/components/TypingPractice'
 
@@ -21,10 +21,20 @@ export function GameClient() {
   const [typingCompleted, setTypingCompleted] = useState(false)
   const [hasSpokenInitialWord, setHasSpokenInitialWord] = useState(false)
 
-  // Initialize speech synthesis and sounds
+  // Initialize speech synthesis, sounds, and preload Kuromoji dictionary
   useEffect(() => {
     initializeSpeechSynthesis()
     enableSounds()
+
+    // ⭐ Kuromoji辞書のプリロード（バックグラウンド）
+    // シングルトンパターンなので、何度呼んでもダウンロードは1回だけ
+    preloadKuromojiDictionary().then((success) => {
+      if (success) {
+        console.log('✅ Kuromoji dictionary preloaded successfully')
+      } else {
+        console.warn('⚠️ Dictionary preload failed (will load on demand)')
+      }
+    })
   }, [])
 
   // ★PROCESSING状態への自動遷移
