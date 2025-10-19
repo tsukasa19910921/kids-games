@@ -51,6 +51,8 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const hasResultRef = useRef(false)
+  const watchdogTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const processingAbortedRef = useRef(false)
 
   // Initialize SpeechRecognition
   useEffect(() => {
@@ -137,6 +139,16 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       // すべての後処理をPROCESSINGに包含
       console.log('[Phase B] Starting PROCESSING state')
       setIsProcessing(true)
+      processingAbortedRef.current = false
+
+      // ⭐ ウォッチドッグタイマー: PROCESSING状態が5秒以上続いたら強制中断
+      // iPadなどで辞書ロードが固着した場合の安全装置
+      watchdogTimerRef.current = setTimeout(() => {
+        console.error('[Watchdog] PROCESSING timeout (5s), forcing abort')
+        processingAbortedRef.current = true
+        setError('音声の処理に時間がかかりすぎました。もう一度お試しください。')
+        setIsProcessing(false)
+      }, 5000)
 
       // ⭐ 重要：Reactの再レンダリングを確実に発生させる待機処理
       //
@@ -170,6 +182,12 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       await new Promise(resolve => setTimeout(resolve, 100))
       console.log('[Phase B] isProcessing state reflected (React re-rendered)')
 
+      // ウォッチドッグによる中断チェック
+      if (processingAbortedRef.current) {
+        console.log('[Phase B] Processing aborted by watchdog, skipping')
+        return
+      }
+
       try {
         let processedText = bestResult
 
@@ -177,13 +195,21 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
         if (containsKanji(processedText)) {
           console.log('Converting kanji to hiragana...')
           const converted = await convertKanjiToHiragana(processedText, 3000)  // ★3秒に延長
-          processedText = converted !== processedText ? converted : processedText
 
-          if (converted !== bestResult) {
-            console.log('Converted to:', converted)
-          } else {
-            console.log('Conversion failed, using original text')
+          // ウォッチドッグによる中断チェック
+          if (processingAbortedRef.current) {
+            console.log('[Phase B] Processing aborted during kanji conversion')
+            return
           }
+
+          // 変換失敗（タイムアウトで元のテキストが返された場合）はエラー扱い
+          if (converted === processedText && containsKanji(converted)) {
+            console.error('Kanji conversion failed or timed out')
+            throw new Error('Kanji conversion timeout')
+          }
+
+          processedText = converted
+          console.log('Converted to:', converted)
         }
 
         // 数字変換
@@ -226,16 +252,18 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
 
       } catch (error) {
         console.error('Processing failed:', error)
-        // フォールバック：最小限の処理で続行
-        const fallback = normalizeKanaKeepLongVowel(convertNumbersToHiragana(bestResult))
-        console.log('Fallback result:', fallback)
-        setTranscript(fallback)
-
-        // フォールバック時も状態反映を待つ（同じ理由）
-        await new Promise(resolve => setTimeout(resolve, 0))
-        console.log('[Fallback] Transcript state reflected (React re-rendered)')
+        // エラー時は「音声が聞き取れなかった」と同じ処理
+        // （フォールバックではなく、やり直しオプションを表示）
+        setError('音声の処理に失敗しました。もう一度お試しください。')
+        // finallyでisProcessing=falseになり、GameClient側でPLAYING状態に戻る
       } finally {
-        // PROCESSING終了
+        // ウォッチドッグタイマーをクリア
+        if (watchdogTimerRef.current) {
+          clearTimeout(watchdogTimerRef.current)
+          watchdogTimerRef.current = null
+        }
+
+        // PROCESSING終了（ウォッチドッグで既にfalseになっている場合もある）
         console.log('[Phase B] PROCESSING complete, setting isProcessing=false')
         setIsProcessing(false)
       }
@@ -309,6 +337,9 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       }
       if (timerRef.current) {
         clearInterval(timerRef.current)
+      }
+      if (watchdogTimerRef.current) {
+        clearTimeout(watchdogTimerRef.current)
       }
     }
   }, [])
@@ -402,6 +433,11 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
   const resetTranscript = useCallback(() => {
     setTranscript('')
     setError(null)
+    if (watchdogTimerRef.current) {
+      clearTimeout(watchdogTimerRef.current)
+      watchdogTimerRef.current = null
+    }
+    processingAbortedRef.current = false
   }, [])
 
   return {
